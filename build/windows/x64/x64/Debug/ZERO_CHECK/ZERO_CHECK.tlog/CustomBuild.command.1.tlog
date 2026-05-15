@@ -1,0 +1,10 @@
+^D:\BTK\BTK_BYTE_BENDERS\BUILD\WINDOWS\X64\CMAKEFILES\085E277B6F787D7EBDECF773E840893E\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SD:/BTK/btk_byte_benders/windows -BD:/BTK/btk_byte_benders/build/windows/x64 --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/BTK/btk_byte_benders/build/windows/x64/btk_byte_benders.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

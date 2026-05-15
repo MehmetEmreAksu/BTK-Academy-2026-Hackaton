@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\BTK\btk_byte_benders\build\windows\x64\CMakeFiles\c8eebfcfbec0f4839c7e052018042e7c\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{46A63EF7-0C9B-3BAE-8368-02AE1E6215E7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
