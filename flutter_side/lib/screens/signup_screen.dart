@@ -1,8 +1,65 @@
+import 'package:btk_byte_benders/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 
-class SignUpScreen extends StatelessWidget {
+class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
+
+  @override
+  State<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  final authService = AuthService();
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+
+  void signUp() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Passwords do not match.')));
+      return;
+    }
+
+    try {
+      final response = await authService.signUpWithEmailPassword(
+        email,
+        password,
+        firstName,
+        lastName,
+      );
+      if (response.session != null) {
+        // Sign up successful, navigate to user screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      } else {
+        // Handle sign up failure (e.g., show error message)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign up failed. Please check your credentials.'),
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle any errors that occur during sign up
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('An error occurred: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,41 +91,28 @@ class SignUpScreen extends StatelessWidget {
 
               const Text(
                 'Start using AI-powered financial intelligence today.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
 
               const SizedBox(height: 40),
 
-              buildInput(
-                'Full Name',
-                Icons.person_outline,
-              ),
+              emailInput('Email Address', Icons.email_outlined),
 
               const SizedBox(height: 20),
 
-              buildInput(
-                'Email Address',
-                Icons.email_outlined,
-              ),
+              firstNameInput('First Name', Icons.person),
 
               const SizedBox(height: 20),
 
-              buildInput(
-                'Password',
-                Icons.lock_outline,
-                true,
-              ),
+              lastNameInput('Last Name', Icons.person),
 
               const SizedBox(height: 20),
 
-              buildInput(
-                'Confirm Password',
-                Icons.lock_outline,
-                true,
-              ),
+              passwordInput('Password', Icons.lock_outline, true),
+
+              const SizedBox(height: 20),
+
+              confirmPasswordInput('Confirm Password', Icons.lock_outline, true),
 
               const SizedBox(height: 28),
 
@@ -82,20 +126,10 @@ class SignUpScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Registration system coming soon.',
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: signUp,
                   child: const Text(
                     'Create Account',
-                    style: TextStyle(
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
@@ -108,16 +142,13 @@ class SignUpScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const LoginScreen(),
+                        builder: (context) => const LoginScreen(),
                       ),
                     );
                   },
-                  child: const Text(
-                    'Already have an account? Log In',
-                  ),
+                  child: const Text('Already have an account? Log In'),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -125,12 +156,95 @@ class SignUpScreen extends StatelessWidget {
     );
   }
 
-  Widget buildInput(
+  
+  Widget firstNameInput(String hint, IconData icon, [bool obscure = false]) {
+    return TextField(
+      controller: _firstNameController,
+      keyboardType: TextInputType.name,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white54),
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: const Color(0xFF1B233B),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+   Widget lastNameInput(String hint, IconData icon, [bool obscure = false]) {
+    return TextField(
+      controller: _lastNameController,
+      keyboardType: TextInputType.name,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white54),
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: const Color(0xFF1B233B),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget emailInput(String hint, IconData icon, [bool obscure = false]) {
+    return TextField(
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white54),
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: const Color(0xFF1B233B),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget passwordInput(String hint, IconData icon, [bool obscure = false]) {
+    return TextField(
+      controller: _passwordController,
+      keyboardType: TextInputType.emailAddress,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white54),
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: const Color(0xFF1B233B),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget confirmPasswordInput(
     String hint,
     IconData icon, [
     bool obscure = false,
   ]) {
     return TextField(
+      controller: _confirmPasswordController,
+      keyboardType: TextInputType.emailAddress,
       obscureText: obscure,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(

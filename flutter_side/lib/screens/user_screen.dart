@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserScreen extends StatefulWidget {
   const UserScreen({super.key});
@@ -8,19 +9,25 @@ class UserScreen extends StatefulWidget {
   State<UserScreen> createState() => _UserScreenState();
 }
 
+final user = Supabase.instance.client.auth.currentUser;
+
+final firstName = user?.userMetadata?['first_name'] ?? 'User';
+final lastName = user?.userMetadata?['last_name'] ?? '';
+
 class _UserScreenState extends State<UserScreen> {
   int selectedIndex = 0;
-  final TextEditingController _chatController = TextEditingController();
-  final ScrollController _chatScrollController = ScrollController();
+  bool _showDesktopChat = true;
   bool _showMobileChatPanel = false;
 
-  final List<String> menuItems = [
-    "Dashboard",
-    "AI Agents",
-    "Portfolio",
-    "Market",
-    "Alerts",
-    "Settings",
+  final TextEditingController _chatController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
+
+  final List<Map<String, dynamic>> menuItems = [
+    {"title": "Dashboard", "icon": Icons.dashboard_rounded},
+    {"title": "Portfolio", "icon": Icons.pie_chart_rounded},
+    {"title": "Market", "icon": Icons.show_chart_rounded},
+    {"title": "Alerts", "icon": Icons.notifications_active_rounded},
+    {"title": "Settings", "icon": Icons.settings_rounded},
   ];
 
   final List<Map<String, dynamic>> _chatMessages = [
@@ -30,43 +37,38 @@ class _UserScreenState extends State<UserScreen> {
       'isUser': false,
       'time': '09:15 AM',
     },
-    {
-      'text': 'What\'s the current risk level of my portfolio?',
-      'isUser': true,
-      'time': '09:16 AM',
-    },
-    {
-      'text':
-          'Your portfolio risk score is currently at 7.2/10 (Moderate-High). The main risk factors are: 45% exposure to tech sector and recent volatility in semiconductor stocks. Would you like recommendations to optimize?',
-      'isUser': false,
-      'time': '09:16 AM',
-    },
   ];
 
   void _sendMessage() {
     if (_chatController.text.trim().isEmpty) return;
+
     setState(() {
       _chatMessages.add({
         'text': _chatController.text,
         'isUser': true,
         'time': TimeOfDay.now().format(context),
       });
-      _chatController.clear();
-      Future.delayed(const Duration(milliseconds: 100), () {
+    });
+
+    _chatController.clear();
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_chatScrollController.hasClients) {
         _chatScrollController.animateTo(
-          _chatScrollController.position.maxScrollExtent,
+          _chatScrollController.position.maxScrollExtent + 100,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
-      });
-      Future.delayed(const Duration(seconds: 1), () {
-        setState(() {
-          _chatMessages.add({
-            'text':
-                'I\'m analyzing your request. Let me fetch the latest market data...',
-            'isUser': false,
-            'time': TimeOfDay.now().format(context),
-          });
+      }
+    });
+
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        _chatMessages.add({
+          'text':
+              'I\'m analyzing your request and checking live market signals.',
+          'isUser': false,
+          'time': TimeOfDay.now().format(context),
         });
       });
     });
@@ -76,12 +78,15 @@ class _UserScreenState extends State<UserScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final bool isDesktop = size.width >= 1200;
-    final bool isTablet = size.width >= 600 && size.width < 1200;
+    final bool isTablet = size.width >= 700 && size.width < 1200;
 
     return Scaffold(
       backgroundColor: const Color(0xFF060A14),
       drawer: !isDesktop
-          ? Drawer(backgroundColor: Colors.transparent, child: _buildSidebar())
+          ? Drawer(
+              backgroundColor: const Color(0xFF0A1020),
+              child: SafeArea(child: _buildSidebar()),
+            )
           : null,
       appBar: !isDesktop
           ? AppBar(
@@ -89,110 +94,89 @@ class _UserScreenState extends State<UserScreen> {
               elevation: 0,
               iconTheme: const IconThemeData(color: Colors.white),
               actions: [
-                if (!_showMobileChatPanel)
-                  IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.chat_bubble_outline, size: 20),
-                    ),
-                    onPressed: () {
-                      setState(() => _showMobileChatPanel = true);
-                    },
-                  ),
-                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _showMobileChatPanel = !_showMobileChatPanel;
+                    });
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                ),
               ],
             )
           : null,
       body: Stack(
         children: [
           Positioned(
-            top: -150,
-            left: -150,
-            child: glowCircle(const Color(0xFF8B5CF6).withOpacity(0.3), 400),
+            top: -120,
+            left: -120,
+            child: glowCircle(const Color(0xFF8B5CF6).withOpacity(0.25), 320),
           ),
           Positioned(
-            bottom: -200,
-            right: -200,
-            child: glowCircle(Colors.blue.withOpacity(0.2), 500),
+            bottom: -180,
+            right: -180,
+            child: glowCircle(Colors.blue.withOpacity(0.18), 420),
           ),
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+              filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
               child: Container(color: Colors.transparent),
             ),
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isDesktop)
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: _buildSidebar(),
-                ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTopbar(isMobile: !isDesktop),
-                      const SizedBox(height: 24),
-                      _buildHeroCard(isMobile: !isDesktop),
-                      const SizedBox(height: 24),
-                      if (isDesktop)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 5,
-                              child: Column(
-                                children: [
-                                  _buildStatsGrid(isMobile: false),
-                                  const SizedBox(height: 24),
-                                  _buildActivityPanel(),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(flex: 4, child: _buildMarketOverview()),
-                          ],
-                        )
-                      else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildStatsGrid(isMobile: true, isTablet: isTablet),
-                            const SizedBox(height: 24),
-                            _buildMarketOverview(),
-                            const SizedBox(height: 24),
-                            _buildActivityPanel(),
-                          ],
-                        ),
-                    ],
+          SafeArea(
+            child: Row(
+              children: [
+                if (isDesktop)
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: SizedBox(width: 280, child: _buildSidebar()),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 350),
+                      child: _buildSelectedPage(
+                        isDesktop: isDesktop,
+                        isTablet: isTablet,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              if (isDesktop)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: 20,
-                    right: 20,
-                    bottom: 20,
+                if (isDesktop && _showDesktopChat)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: 20,
+                      right: 20,
+                      bottom: 20,
+                    ),
+                    child: SizedBox(width: 380, child: _buildAIChatPanel()),
                   ),
-                  child: _buildAIChatPanel(),
-                ),
-            ],
+              ],
+            ),
           ),
+          if (isDesktop && !_showDesktopChat)
+            Positioned(
+              right: 30,
+              bottom: 30,
+              child: FloatingActionButton(
+                backgroundColor: const Color(0xFF8B5CF6),
+                onPressed: () {
+                  setState(() {
+                    _showDesktopChat = true;
+                  });
+                },
+                child: const Icon(Icons.chat_rounded, color: Colors.white),
+              ),
+            ),
           if (_showMobileChatPanel && !isDesktop)
             Positioned.fill(
               child: GestureDetector(
-                onTap: () => setState(() => _showMobileChatPanel = false),
+                onTap: () {
+                  setState(() {
+                    _showMobileChatPanel = false;
+                  });
+                },
                 child: Container(
                   color: Colors.black.withOpacity(0.7),
                   child: Align(
@@ -200,27 +184,9 @@ class _UserScreenState extends State<UserScreen> {
                     child: GestureDetector(
                       onTap: () {},
                       child: Container(
-                        height: size.height * 0.75,
+                        height: size.height * 0.78,
                         margin: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () => setState(
-                                    () => _showMobileChatPanel = false,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Expanded(child: _buildAIChatPanel()),
-                          ],
-                        ),
+                        child: _buildAIChatPanel(),
                       ),
                     ),
                   ),
@@ -232,101 +198,355 @@ class _UserScreenState extends State<UserScreen> {
     );
   }
 
-  Widget _buildSidebar() {
-    return Container(
-      width: 280,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+  Widget _buildSelectedPage({required bool isDesktop, required bool isTablet}) {
+    switch (selectedIndex) {
+      case 0:
+        return _dashboardPage(isDesktop, isTablet);
+      case 1:
+        return _portfolioPage();
+      case 2:
+        return _marketPage();
+      case 3:
+        return _alertsPage();
+      case 4:
+        return _settingsPage();
+      default:
+        return _dashboardPage(isDesktop, isTablet);
+    }
+  }
+
+  Widget _dashboardPage(bool isDesktop, bool isTablet) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildTopbar(),
+          const SizedBox(height: 24),
+          _buildHeroCard(),
+          const SizedBox(height: 24),
+          if (isDesktop)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    children: [
+                      _buildStatsGrid(isMobile: false, isTablet: false),
+                      const SizedBox(height: 24),
+                      _buildActivityPanel(),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(flex: 4, child: _buildMarketOverview()),
+              ],
+            )
+          else
+            Column(
+              children: [
+                _buildStatsGrid(isMobile: true, isTablet: isTablet),
+                const SizedBox(height: 24),
+                _buildMarketOverview(),
+                const SizedBox(height: 24),
+                _buildActivityPanel(),
+              ],
+            ),
+        ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+    );
+  }
+
+  Widget _portfolioPage() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildTopbar(),
+          const SizedBox(height: 24),
+          glassContainer(
+            padding: const EdgeInsets.all(28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.auto_graph, color: Colors.white),
-                    ),
-                    const SizedBox(width: 14),
-                    const Text(
-                      "Aizanoi ",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: menuItems.length,
-                    itemBuilder: (context, index) =>
-                        sidebarItem(index, menuItems[index]),
+                const Text(
+                  "Portfolio",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Color(0xFF8B5CF6),
-                        child: Text(
-                          "AF",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                const SizedBox(height: 12),
+                const Text(
+                  "Track your assets, profits and AI trading performance.",
+                  style: TextStyle(color: Colors.white60, fontSize: 15),
+                ),
+                const SizedBox(height: 28),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Wrap(
+                      spacing: 20,
+                      runSpacing: 20,
+                      children: [
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth > 600
+                                ? 260
+                                : constraints.maxWidth,
+                          ),
+                          child: statCard(
+                            "Total Balance",
+                            "\$124K",
+                            Icons.account_balance_wallet_rounded,
+                            Colors.green,
+                            "+12.5%",
                           ),
                         ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Ahmet",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                          ],
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth > 600
+                                ? 260
+                                : constraints.maxWidth,
+                          ),
+                          child: statCard(
+                            "Assets",
+                            "18",
+                            Icons.stacked_bar_chart_rounded,
+                            Colors.blue,
+                            "Diversified",
+                          ),
                         ),
-                      ),
-                    ],
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth > 600
+                                ? 260
+                                : constraints.maxWidth,
+                          ),
+                          child: statCard(
+                            "Monthly Profit",
+                            "\$12.8K",
+                            Icons.trending_up_rounded,
+                            const Color(0xFF8B5CF6),
+                            "This month",
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _marketPage() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildTopbar(),
+          const SizedBox(height: 24),
+          glassContainer(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Market Analysis",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                marketItem("S&P 500", "4,567.89", "+0.8%", Colors.green, "SPX"),
+                marketItem(
+                  "NASDAQ",
+                  "14,234.56",
+                  "+1.2%",
+                  Colors.green,
+                  "IXIC",
+                ),
+                marketItem(
+                  "BTC/USD",
+                  "67,432.10",
+                  "+2.4%",
+                  Colors.green,
+                  "BTC",
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertsPage() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildTopbar(),
+          const SizedBox(height: 24),
+          glassContainer(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Smart Alerts",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                activityItem(
+                  "High Volatility",
+                  "Semiconductor sector volatility increased.",
+                  Colors.orange,
+                ),
+                activityItem(
+                  "AI Signal",
+                  "Strong buy signal detected for NVDA.",
+                  Colors.green,
+                ),
+                activityItem(
+                  "Fed News",
+                  "Interest rate announcement incoming.",
+                  Colors.blue,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _settingsPage() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildTopbar(),
+          const SizedBox(height: 24),
+          glassContainer(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Settings",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _settingsTile(Icons.person_outline_rounded, "Account Settings"),
+                _settingsTile(Icons.security_rounded, "Security"),
+                _settingsTile(Icons.palette_outlined, "Appearance"),
+                _settingsTile(
+                  Icons.notifications_none_rounded,
+                  "Notifications",
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return glassContainer(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.auto_graph_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Text(
+                  "Aizanoi",
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 36),
+          Expanded(
+            child: ListView.builder(
+              itemCount: menuItems.length,
+              itemBuilder: (context, index) {
+                return sidebarItem(
+                  index,
+                  menuItems[index]["title"],
+                  menuItems[index]["icon"],
+                );
+              },
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: const Color(0xFF8B5CF6),
+                  child: Text(
+                    firstName.isNotEmpty ? firstName[0].toUpperCase() : "U",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "$firstName $lastName",
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildTopbar({required bool isMobile}) {
+  Widget _buildTopbar() {
     return glassContainer(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
@@ -335,12 +555,14 @@ class _UserScreenState extends State<UserScreen> {
             child: TextField(
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: "Search stocks, agents, alerts...",
+                hintText: "Search market, assets, alerts...",
                 hintStyle: const TextStyle(color: Colors.white54),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.05),
-                prefixIcon: const Icon(Icons.search, color: Colors.white54),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Colors.white54,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -348,209 +570,209 @@ class _UserScreenState extends State<UserScreen> {
               ),
             ),
           ),
-          if (!isMobile) ...[
-            const SizedBox(width: 16),
-            iconButton(Icons.notifications_none),
-            const SizedBox(width: 12),
-            iconButton(Icons.settings_outlined),
-          ],
+          const SizedBox(width: 16),
+          iconButton(Icons.notifications_none_rounded),
+          const SizedBox(width: 10),
+          iconButton(Icons.settings_outlined),
         ],
       ),
     );
   }
 
-  Widget _buildHeroCard({required bool isMobile}) {
+  Widget _buildHeroCard() {
     return glassContainer(
-      padding: EdgeInsets.all(isMobile ? 24 : 40),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+      padding: const EdgeInsets.all(32),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool compact = constraints.maxWidth < 800;
+
+          return Wrap(
+            spacing: 30,
+            runSpacing: 30,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: compact ? constraints.maxWidth : 500,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 14,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.green.withOpacity(0.2),
-                            Colors.green.withOpacity(0.1),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.green.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.green.withOpacity(0.3),
+                          color: Colors.green.withOpacity(0.2),
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            "Markets Open",
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      child: const Text(
+                        "Markets Open",
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Portfolio Performance",
-                  style: TextStyle(
-                    fontSize: isMobile ? 28 : 38,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text(
-                      "\$124,567.89",
+                    const SizedBox(height: 24),
+                    Text(
+                      "Portfolio Performance",
                       style: TextStyle(
-                        fontSize: 32,
+                        color: Colors.white,
+                        fontSize: compact ? 32 : 42,
+                        height: 1.1,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF10B981),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.arrow_upward,
-                            color: Color(0xFF10B981),
-                            size: 16,
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          "\$124,567.89",
+                          style: TextStyle(
+                            color: const Color(0xFF10B981),
+                            fontSize: compact ? 28 : 34,
+                            fontWeight: FontWeight.w900,
                           ),
-                          SizedBox(width: 4),
-                          Text(
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
                             "+12.5%",
                             style: TextStyle(
-                              color: Color(0xFF10B981),
+                              color: Colors.green,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
                             ),
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      "AI detected strong opportunities in semiconductor and renewable energy sectors.",
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: 15,
+                        height: 1.6,
                       ),
+                    ),
+                    const SizedBox(height: 24),
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 14,
+                      children: [
+                        gradientButton(
+                          "View Opportunities",
+                          Icons.trending_up_rounded,
+                        ),
+                        outlineButton(
+                          "Portfolio Details",
+                          Icons.pie_chart_rounded,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  "3 AI agents detected high-probability trading opportunities in semiconductors and renewable energy sectors.",
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 15,
-                    height: 1.5,
+              ),
+              if (!compact)
+                Container(
+                  width: 220,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF8B5CF6).withOpacity(0.35),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.auto_graph_rounded,
+                    color: Colors.white24,
+                    size: 120,
                   ),
                 ),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: [
-                    gradientButton("View Opportunities", Icons.trending_up),
-                    outlineButton("Portfolio Details", Icons.pie_chart),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (!isMobile) ...[
-            const SizedBox(width: 30),
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF10B981).withOpacity(0.35),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              child: const Icon(
-                Icons.trending_up,
-                size: 100,
-                color: Colors.white24,
-              ),
-            ),
-          ],
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildStatsGrid({required bool isMobile, bool isTablet = false}) {
-    int crossAxisCount = isMobile ? (isTablet ? 2 : 1) : 2;
+  Widget _buildStatsGrid({required bool isMobile, required bool isTablet}) {
+    int count = isMobile ? (isTablet ? 2 : 1) : 2;
 
-    return GridView.count(
-      crossAxisCount: crossAxisCount,
-      crossAxisSpacing: 20,
-      mainAxisSpacing: 20,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: isMobile && !isTablet ? 2.5 : 1.3,
-      children: [
-        statCard(
-          "Active Agents",
-          "12",
-          Icons.smart_toy,
-          const Color(0xFF8B5CF6),
-          "+3 this week",
-        ),
-        statCard(
-          "Open Positions",
-          "8",
-          Icons.account_balance_wallet,
-          Colors.blue,
-          "\$45.2K total",
-        ),
-        statCard(
-          "Win Rate",
-          "68%",
-          Icons.percent,
-          Colors.green,
-          "Last 30 days",
-        ),
-        statCard(
-          "Risk Score",
-          "7.2",
-          Icons.warning_amber,
-          Colors.orange,
-          "Moderate-High",
-        ),
-      ],
+    final items = [
+      {
+        "title": "Active Bots",
+        "value": "12",
+        "icon": Icons.smart_toy_rounded,
+        "color": const Color(0xFF8B5CF6),
+        "subtitle": "+3 this week",
+      },
+      {
+        "title": "Open Positions",
+        "value": "8",
+        "icon": Icons.account_balance_wallet_rounded,
+        "color": Colors.blue,
+        "subtitle": "\$45K total",
+      },
+      {
+        "title": "Win Rate",
+        "value": "68%",
+        "icon": Icons.percent_rounded,
+        "color": Colors.green,
+        "subtitle": "Last 30 days",
+      },
+      {
+        "title": "Risk Score",
+        "value": "7.2",
+        "icon": Icons.warning_amber_rounded,
+        "color": Colors.orange,
+        "subtitle": "Moderate",
+      },
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double spacing = 20;
+        final double availableWidth = constraints.maxWidth;
+        final double itemWidth =
+            (availableWidth - ((count - 1) * spacing)) / count;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: items.map((item) {
+            return SizedBox(
+              width: itemWidth,
+              child: statCard(
+                item["title"] as String,
+                item["value"] as String,
+                item["icon"] as IconData,
+                item["color"] as Color,
+                item["subtitle"] as String,
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
@@ -560,56 +782,18 @@ class _UserScreenState extends State<UserScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Market Overview",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              Icon(Icons.show_chart, color: Colors.white54),
-            ],
+          const Text(
+            "Market Overview",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 24),
           marketItem("S&P 500", "4,567.89", "+0.8%", Colors.green, "SPX"),
           marketItem("NASDAQ", "14,234.56", "+1.2%", Colors.green, "IXIC"),
-          marketItem("DOW JONES", "34,987.12", "-0.3%", Colors.red, "DJI"),
           marketItem("BTC/USD", "67,432.10", "+2.4%", Colors.green, "BTC"),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF8B5CF6).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF8B5CF6).withOpacity(0.3),
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  color: Color(0xFF8B5CF6),
-                  size: 20,
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "AI Insight: Tech sector showing strong momentum",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -624,9 +808,9 @@ class _UserScreenState extends State<UserScreen> {
           const Text(
             "Recent Activity",
             style: TextStyle(
+              color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
             ),
           ),
           const SizedBox(height: 24),
@@ -645,202 +829,144 @@ class _UserScreenState extends State<UserScreen> {
             "Portfolio rebalancing recommended",
             const Color(0xFF8B5CF6),
           ),
-          activityItem(
-            "News Scan",
-            "Fed announces interest rate decision",
-            Colors.blue,
-          ),
-          activityItem(
-            "Agent Report",
-            "Weekly performance summary ready",
-            Colors.green,
-          ),
         ],
       ),
     );
   }
 
   Widget _buildAIChatPanel() {
-    return Container(
-      width: 380,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: Colors.white.withOpacity(0.08)),
+    return glassContainer(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withOpacity(0.08)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.assistant_rounded,
+                    color: Colors.white,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Your AI Assistant",
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
                         ),
-                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
-                        Icons.psychology,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "AI Assistant",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            "Online",
-                            style: TextStyle(fontSize: 12, color: Colors.green),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
+                      SizedBox(height: 4),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  controller: _chatScrollController,
-                  padding: const EdgeInsets.all(20),
-                  itemCount: _chatMessages.length,
-                  itemBuilder: (context, index) {
-                    final message = _chatMessages[index];
-                    return _buildChatMessage(
-                      message['text'],
-                      message['isUser'],
-                      message['time'],
-                    );
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _showDesktopChat = false;
+                    });
                   },
+                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
                 ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: _chatScrollController,
+              padding: const EdgeInsets.all(20),
+              itemCount: _chatMessages.length,
+              itemBuilder: (context, index) {
+                final message = _chatMessages[index];
+
+                return _buildChatMessage(
+                  message["text"],
+                  message["isUser"],
+                  message["time"],
+                );
+              },
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.white.withOpacity(0.08)),
               ),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: TextField(
+                      controller: _chatController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        hintText: "Ask anything...",
+                        hintStyle: TextStyle(color: Colors.white54),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      onSubmitted: (_) => _sendMessage(),
+                    ),
                   ),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        _quickActionChip("Portfolio", Icons.pie_chart),
-                        const SizedBox(width: 8),
-                        _quickActionChip("Market", Icons.trending_up),
-                        const SizedBox(width: 8),
-                        _quickActionChip("Risk", Icons.shield),
-                      ],
+                const SizedBox(width: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
-                              ),
-                            ),
-                            child: TextField(
-                              controller: _chatController,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: const InputDecoration(
-                                hintText: "Ask anything...",
-                                hintStyle: TextStyle(color: Colors.white54),
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                              onSubmitted: (_) => _sendMessage(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: IconButton(
-                            onPressed: _sendMessage,
-                            icon: const Icon(Icons.send, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: IconButton(
+                    onPressed: _sendMessage,
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildChatMessage(String text, bool isUser, String time) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Row(
         mainAxisAlignment: isUser
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isUser) ...[
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.psychology,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
           Flexible(
             child: Column(
               crossAxisAlignment: isUser
@@ -851,92 +977,36 @@ class _UserScreenState extends State<UserScreen> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: isUser
-                        ? const Color(0xFF8B5CF6).withOpacity(0.2)
+                        ? const Color(0xFF8B5CF6).withOpacity(0.18)
                         : Colors.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isUser
-                          ? const Color(0xFF8B5CF6).withOpacity(0.3)
-                          : Colors.white.withOpacity(0.1),
-                    ),
                   ),
                   child: Text(
                     text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
+                    style: const TextStyle(color: Colors.white, height: 1.5),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   time,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.4),
+                    color: Colors.white.withOpacity(0.35),
                     fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
-          if (isUser) ...[
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.person, color: Colors.white, size: 16),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _quickActionChip(String label, IconData icon) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _chatMessages.add({
-            'text': 'Tell me about my $label',
-            'isUser': true,
-            'time': TimeOfDay.now().format(context),
-          });
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white70, size: 14),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget sidebarItem(int index, String title, IconData icon) {
+    final bool selected = selectedIndex == index;
 
-  Widget sidebarItem(int index, String title) {
-    bool selected = selectedIndex == index;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         decoration: BoxDecoration(
@@ -945,23 +1015,25 @@ class _UserScreenState extends State<UserScreen> {
                   colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
                 )
               : null,
-          borderRadius: BorderRadius.circular(16),
+          color: selected ? null : Colors.white.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(18),
         ),
         child: ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          leading: Icon(icon, color: Colors.white),
           title: Text(
             title,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
           onTap: () {
-            setState(() => selectedIndex = index);
-            if (!MediaQuery.of(context).size.width.isFinite ||
-                MediaQuery.of(context).size.width < 900) {
+            setState(() {
+              selectedIndex = index;
+            });
+
+            if (MediaQuery.of(context).size.width < 1200) {
               Navigator.pop(context);
             }
           },
@@ -977,49 +1049,49 @@ class _UserScreenState extends State<UserScreen> {
     Color color,
     String subtitle,
   ) {
-    return glassContainer(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: color, size: 28),
+    return SizedBox(
+      width: double.infinity,
+      child: glassContainer(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
+              child: Icon(icon, color: color),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white60, fontSize: 14),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.4),
-              fontSize: 11,
+            const SizedBox(height: 16),
+            Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white60),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.35),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1034,49 +1106,43 @@ class _UserScreenState extends State<UserScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.03),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
                 symbol,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: color, fontWeight: FontWeight.bold),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     name,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
                       color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     price,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 12,
-                    ),
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white.withOpacity(0.55)),
                   ),
                 ],
               ),
@@ -1084,16 +1150,12 @@ class _UserScreenState extends State<UserScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
+                color: color.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 change,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: color, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -1112,13 +1174,7 @@ class _UserScreenState extends State<UserScreen> {
             width: 12,
             height: 12,
             margin: const EdgeInsets.only(top: 5),
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(color: color.withOpacity(0.6), blurRadius: 8),
-              ],
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1127,20 +1183,16 @@ class _UserScreenState extends State<UserScreen> {
               children: [
                 Text(
                   title,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
                     color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   desc,
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    height: 1.4,
-                    fontSize: 13,
-                  ),
+                  style: const TextStyle(color: Colors.white60, height: 1.5),
                 ),
               ],
             ),
@@ -1150,17 +1202,49 @@ class _UserScreenState extends State<UserScreen> {
     );
   }
 
+  Widget _settingsTile(IconData icon, String title) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white70),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.arrow_forward_ios_rounded,
+            color: Colors.white38,
+            size: 16,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget glassContainer({required Widget child, required EdgeInsets padding}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white.withOpacity(0.035),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Padding(padding: padding, child: child),
         ),
       ),
@@ -1177,18 +1261,21 @@ class _UserScreenState extends State<UserScreen> {
       ),
       child: ElevatedButton.icon(
         onPressed: () {},
-        icon: Icon(icon, color: Colors.white),
+        icon: Icon(icon, color: Colors.white, size: 20),
         label: Text(
           title,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 14,
           ),
         ),
         style: ElevatedButton.styleFrom(
+          elevation: 0,
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -1200,17 +1287,19 @@ class _UserScreenState extends State<UserScreen> {
   Widget outlineButton(String title, IconData icon) {
     return OutlinedButton.icon(
       onPressed: () {},
-      icon: Icon(icon, color: Colors.white),
+      icon: Icon(icon, color: Colors.white, size: 20),
       label: Text(
         title,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
+          fontSize: 14,
         ),
       ),
       style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white.withOpacity(0.15)),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+        side: BorderSide(color: Colors.white.withOpacity(0.12)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
@@ -1225,16 +1314,17 @@ class _UserScreenState extends State<UserScreen> {
       child: IconButton(
         onPressed: () {},
         icon: Icon(icon, color: Colors.white),
-        splashRadius: 24,
       ),
     );
   }
 
   Widget glowCircle(Color color, double size) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
     );
   }
 }

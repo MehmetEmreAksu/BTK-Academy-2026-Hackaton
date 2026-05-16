@@ -2,8 +2,24 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:btk_byte_benders/screens/login_screen.dart';
 import 'package:btk_byte_benders/screens/signup_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-void main() {
+Future<void> openLink() async {
+  final Uri url = Uri.parse(
+    "https://github.com/MehmetEmreAksu/BTK-Academy-2026-Hackaton",
+  );
+
+  await launchUrl(url, mode: LaunchMode.platformDefault);
+}
+
+Future<void> main() async {
+  // Supabase Setup
+  await Supabase.initialize(
+    url: 'https://your-supabase-url.supabase.co',
+    anonKey: 'your-supabase-anon-key',
+  );
+
   runApp(const RiskRadarLandingPage());
 }
 
@@ -86,28 +102,24 @@ class _LandingScreenState extends State<LandingScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Animated background
           AnimatedGradientBackground(controller: _backgroundController),
-          // Floating particles
           FloatingParticles(controller: _floatController),
-          // Content
           SingleChildScrollView(
             child: Column(
               children: [
-                ModernNavbar(),
+                const ModernNavbar(),
                 ModernHeroSection(pulseController: _pulseController),
-                const SizedBox(height: 120),
-                const StatsSection(),
-                const SizedBox(height: 120),
-                const ModernFeaturesSection(),
-                const SizedBox(height: 120),
-                const HowItWorksSection(),
-                const SizedBox(height: 120),
-                const TechStackSection(),
-                const SizedBox(height: 120),
-                const CTASection(),
                 const SizedBox(height: 80),
-                const ModernFooter(),
+                const StatsSection(),
+                const SizedBox(height: 80),
+                const ModernFeaturesSection(),
+                const SizedBox(height: 80),
+                const HowItWorksSection(),
+                const SizedBox(height: 80),
+                const TechStackSection(),
+                const SizedBox(height: 80),
+                const CTASection(),
+                const SizedBox(height: 60),
               ],
             ),
           ),
@@ -117,7 +129,6 @@ class _LandingScreenState extends State<LandingScreen>
   }
 }
 
-// Floating Particles Effect
 class FloatingParticles extends StatelessWidget {
   final AnimationController controller;
 
@@ -159,7 +170,6 @@ class ParticlesPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// Animated Gradient Background
 class AnimatedGradientBackground extends StatelessWidget {
   final AnimationController controller;
 
@@ -191,7 +201,6 @@ class AnimatedGradientBackground extends StatelessWidget {
   }
 }
 
-// Modern Navbar with Glassmorphism
 class ModernNavbar extends StatefulWidget {
   const ModernNavbar({super.key});
 
@@ -204,12 +213,18 @@ class _ModernNavbarState extends State<ModernNavbar> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isSmall = size.width < 900;
+
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+      margin: EdgeInsets.all(size.width < 600 ? 12 : 20),
+      padding: EdgeInsets.symmetric(
+        horizontal: size.width < 600 ? 16 : (isSmall ? 24 : 40),
+        vertical: size.width < 600 ? 12 : 20,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isSmall ? 16 : 24),
         border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
         boxShadow: [
           BoxShadow(
@@ -219,124 +234,187 @@ class _ModernNavbarState extends State<ModernNavbar> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Logo
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6B46C1), Color(0xFF8B5CF6)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF8B5CF6).withOpacity(0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+      child: isSmall
+          ? Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6B46C1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.auto_graph_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Aizanoi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text(
+                          'Log In',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SignUpScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B5CF6),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Get Started'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6B46C1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.auto_graph_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text(
+                  'Aizanoi',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const Spacer(),
+                /*if (size.width > 1100)
+                  ...[
+                    ('Features', Icons.grid_view_rounded),
+                    ('Demo', Icons.play_circle_outline_rounded),
+                    ('Docs', Icons.description_outlined),
+                  ].map(
+                    (item) => _NavItem(
+                      title: item.$1,
+                      icon: item.$2,
+                      isHovered: hoveredItem == item.$1,
+                      onHover: (hovered) {
+                        setState(() => hoveredItem = hovered ? item.$1 : null);
+                      },
+                    ),
+                  ),*/
+                const SizedBox(width: 12),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: size.width < 1100 ? 16 : 24,
+                      vertical: 14,
+                    ),
+                  ),
+                  child: const Text(
+                    'Log In',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6B46C1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: size.width < 1100 ? 16 : 28,
+                        vertical: 14,
+                      ),
+                    ),
+                    child: const Text(
+                      'Get Started',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.auto_graph_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          const Text(
-            'Aizanoi ',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const Spacer(),
-          ...[
-            ('Features', Icons.grid_view_rounded),
-            ('Demo', Icons.play_circle_outline_rounded),
-            ('Docs', Icons.description_outlined),
-          ].map(
-            (item) => _NavItem(
-              title: item.$1,
-              icon: item.$2,
-              isHovered: hoveredItem == item.$1,
-              onHover: (hovered) {
-                setState(() => hoveredItem = hovered ? item.$1 : null);
-              },
-            ),
-          ),
-          const SizedBox(width: 24),
-          // Login Button
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: const Text(
-              'Log In',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Get Started Button
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6B46C1), Color(0xFF8B5CF6)],
-              ),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF8B5CF6).withOpacity(0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SignUpScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text(
-                'Get Started',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -361,8 +439,8 @@ class _NavItem extends StatelessWidget {
       onExit: (_) => onHover(false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: isHovered
               ? Colors.white.withOpacity(0.08)
@@ -370,18 +448,19 @@ class _NavItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 16,
               color: isHovered ? Colors.white : Colors.white70,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
               title,
               style: TextStyle(
                 color: isHovered ? Colors.white : Colors.white70,
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -392,7 +471,6 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// Modern Hero Section
 class ModernHeroSection extends StatelessWidget {
   final AnimationController pulseController;
 
@@ -402,25 +480,24 @@ class ModernHeroSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 1200;
+    final isTablet = size.width > 800;
+    final padding = size.width < 600 ? 20.0 : (isTablet ? 60.0 : 40.0);
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 100 : 40,
-        vertical: 80,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: padding, vertical: 60),
       child: isDesktop
           ? Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(child: _buildHeroContent(context)),
-                const SizedBox(width: 80),
+                const SizedBox(width: 60),
                 Expanded(child: _buildHeroDashboard()),
               ],
             )
           : Column(
               children: [
                 _buildHeroContent(context),
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
                 _buildHeroDashboard(),
               ],
             ),
@@ -428,12 +505,19 @@ class ModernHeroSection extends StatelessWidget {
   }
 
   Widget _buildHeroContent(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final titleSize = size.width < 600
+        ? 36.0
+        : (size.width < 900 ? 48.0 : (size.width < 1200 ? 56.0 : 72.0));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Badge
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(
+            horizontal: size.width < 600 ? 16 : 20,
+            vertical: size.width < 600 ? 10 : 12,
+          ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -463,28 +547,29 @@ class ModernHeroSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
-                '🚀 Hackathon 2026 Project',
-                style: TextStyle(
-                  color: Color(0xFFB794F6),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
+              Flexible(
+                child: Text(
+                  '🚀 Hackathon 2026 Project',
+                  style: TextStyle(
+                    color: const Color(0xFFB794F6),
+                    fontSize: size.width < 600 ? 12 : 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 40),
-        // Main Headline
+        SizedBox(height: size.width < 600 ? 24 : 40),
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Colors.white, Color(0xFFB794F6)],
           ).createShader(bounds),
-          child: const Text(
+          child: Text(
             'AI-Powered\nFinancial Intelligence',
             style: TextStyle(
-              fontSize: 72,
+              fontSize: titleSize,
               fontWeight: FontWeight.w900,
               height: 1.1,
               letterSpacing: -2,
@@ -492,20 +577,20 @@ class ModernHeroSection extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 28),
-        // Subtitle
-        const Text(
+        SizedBox(height: size.width < 600 ? 16 : 28),
+        Text(
           'Real-time market analysis, risk detection, and automated\ninvestment insights powered by advanced AI agents.',
           style: TextStyle(
-            color: Color(0xFF94A3B8),
-            fontSize: 20,
+            color: const Color(0xFF94A3B8),
+            fontSize: size.width < 600 ? 14 : (size.width < 900 ? 16 : 20),
             height: 1.7,
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 48),
-        // CTA Buttons
-        Row(
+        SizedBox(height: size.width < 600 ? 24 : 48),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
           children: [
             _GradientButton(
               text: 'Try Live Demo',
@@ -517,22 +602,20 @@ class ModernHeroSection extends StatelessWidget {
               },
               icon: Icons.play_arrow_rounded,
             ),
-            const SizedBox(width: 20),
             _OutlineButton(
               text: 'View GitHub',
-              onPressed: () {},
+              onPressed: openLink,
               icon: Icons.code_rounded,
             ),
           ],
         ),
-        const SizedBox(height: 40),
-        // Trust Indicators
-        Row(
+        SizedBox(height: size.width < 600 ? 24 : 40),
+        Wrap(
+          spacing: size.width < 600 ? 12 : 32,
+          runSpacing: 12,
           children: [
-            _TrustBadge(icon: Icons.bolt_rounded, text: 'Real-time Processing'),
-            const SizedBox(width: 32),
-            _TrustBadge(icon: Icons.security_rounded, text: 'Secure & Private'),
-            const SizedBox(width: 32),
+            _TrustBadge(icon: Icons.bolt_rounded, text: 'Real-time'),
+            _TrustBadge(icon: Icons.security_rounded, text: 'Secure'),
             _TrustBadge(icon: Icons.auto_awesome, text: 'AI-Powered'),
           ],
         ),
@@ -541,148 +624,159 @@ class ModernHeroSection extends StatelessWidget {
   }
 
   Widget _buildHeroDashboard() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withOpacity(0.08),
-            Colors.white.withOpacity(0.02),
-          ],
-        ),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 40,
-            offset: const Offset(0, 20),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Dashboard Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8B5CF6), Color(0xFF6B46C1)],
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.dashboard_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Text(
-                'Live AI Dashboard',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              AnimatedBuilder(
-                animation: pulseController,
-                builder: (context, child) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(
-                          0xFF10B981,
-                        ).withOpacity(0.3 + pulseController.value * 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(
-                                  0xFF10B981,
-                                ).withOpacity(pulseController.value),
-                                blurRadius: 8,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          '3 Agents Active',
-                          style: TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = MediaQuery.of(context).size;
+        final padding = size.width < 600 ? 16.0 : 32.0;
+
+        return Container(
+          padding: EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(size.width < 600 ? 20 : 32),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.08),
+                Colors.white.withOpacity(0.02),
+              ],
+            ),
+            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 40,
+                offset: const Offset(0, 20),
               ),
             ],
           ),
-          const SizedBox(height: 32),
-          // Alert Cards
-          _DashboardAlertCard(
-            title: 'Market Risk Alert',
-            description: 'Unusual volatility detected in semiconductor sector.',
-            icon: Icons.warning_amber_rounded,
-            color: const Color(0xFFF59E0B),
-            value: '+12.5%',
-          ),
-          const SizedBox(height: 16),
-          _DashboardAlertCard(
-            title: 'News Analysis',
-            description: 'Fed interest rate expectations updated by AI.',
-            icon: Icons.newspaper_rounded,
-            color: const Color(0xFF3B82F6),
-            value: '8 sources',
-          ),
-          const SizedBox(height: 16),
-          _DashboardAlertCard(
-            title: 'Portfolio Insight',
-            description: 'AI recommends defensive positioning for next 48h.',
-            icon: Icons.auto_awesome,
-            color: const Color(0xFF8B5CF6),
-            value: '94% conf.',
-          ),
-          const SizedBox(height: 24),
-          // Chart Placeholder
-          Container(
-            height: 180,
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: CustomPaint(
-                painter: MiniChartPainter(),
-                child: Container(),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(size.width < 600 ? 10 : 12),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFF6B46C1)],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.dashboard_rounded,
+                      color: Colors.white,
+                      size: size.width < 600 ? 18 : 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Live AI Dashboard',
+                      style: TextStyle(
+                        fontSize: size.width < 600 ? 16 : 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  AnimatedBuilder(
+                    animation: pulseController,
+                    builder: (context, child) {
+                      return Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: size.width < 600 ? 12 : 16,
+                          vertical: size.width < 600 ? 6 : 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(
+                              0xFF10B981,
+                            ).withOpacity(0.3 + pulseController.value * 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF10B981,
+                                    ).withOpacity(pulseController.value),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '3 Active',
+                              style: TextStyle(
+                                color: const Color(0xFF10B981),
+                                fontSize: size.width < 600 ? 11 : 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ),
+              SizedBox(height: size.width < 600 ? 20 : 32),
+              _DashboardAlertCard(
+                title: 'Market Risk Alert',
+                description:
+                    'Unusual volatility detected in semiconductor sector.',
+                icon: Icons.warning_amber_rounded,
+                color: const Color(0xFFF59E0B),
+                value: '+12.5%',
+              ),
+              const SizedBox(height: 16),
+              _DashboardAlertCard(
+                title: 'News Analysis',
+                description: 'Fed interest rate expectations updated by AI.',
+                icon: Icons.newspaper_rounded,
+                color: const Color(0xFF3B82F6),
+                value: '8 sources',
+              ),
+              const SizedBox(height: 16),
+              _DashboardAlertCard(
+                title: 'Portfolio Insight',
+                description:
+                    'AI recommends defensive positioning for next 48h.',
+                icon: Icons.auto_awesome,
+                color: const Color(0xFF8B5CF6),
+                value: '94% conf.',
+              ),
+              SizedBox(height: size.width < 600 ? 16 : 24),
+              Container(
+                height: size.width < 600 ? 120 : 180,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: CustomPaint(
+                    painter: MiniChartPainter(),
+                    child: Container(),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -707,6 +801,8 @@ class _GradientButtonState extends State<_GradientButton> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return MouseRegion(
       onEnter: (_) => setState(() => isHovered = true),
       onExit: (_) => setState(() => isHovered = false),
@@ -719,7 +815,7 @@ class _GradientButtonState extends State<_GradientButton> {
                 ? [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)]
                 : [const Color(0xFF6B46C1), const Color(0xFF8B5CF6)],
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFF8B5CF6).withOpacity(isHovered ? 0.5 : 0.3),
@@ -733,20 +829,23 @@ class _GradientButtonState extends State<_GradientButton> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: size.width < 600 ? 20 : 32,
+              vertical: size.width < 600 ? 14 : 20,
+            ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon, size: 20),
-              const SizedBox(width: 10),
+              Icon(widget.icon, size: size.width < 600 ? 18 : 20),
+              const SizedBox(width: 8),
               Text(
                 widget.text,
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: size.width < 600 ? 14 : 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -779,6 +878,8 @@ class _OutlineButtonState extends State<_OutlineButton> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return MouseRegion(
       onEnter: (_) => setState(() => isHovered = true),
       onExit: (_) => setState(() => isHovered = false),
@@ -788,7 +889,7 @@ class _OutlineButtonState extends State<_OutlineButton> {
           color: isHovered
               ? Colors.white.withOpacity(0.05)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isHovered
                 ? Colors.white.withOpacity(0.3)
@@ -799,20 +900,27 @@ class _OutlineButtonState extends State<_OutlineButton> {
         child: TextButton(
           onPressed: widget.onPressed,
           style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: size.width < 600 ? 20 : 32,
+              vertical: size.width < 600 ? 14 : 20,
+            ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon, size: 20, color: Colors.white),
-              const SizedBox(width: 10),
+              Icon(
+                widget.icon,
+                size: size.width < 600 ? 18 : 20,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
               Text(
                 widget.text,
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: size.width < 600 ? 14 : 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -833,15 +941,22 @@ class _TrustBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: const Color(0xFF8B5CF6)),
-        const SizedBox(width: 8),
+        Icon(
+          icon,
+          size: size.width < 600 ? 14 : 16,
+          color: const Color(0xFF8B5CF6),
+        ),
+        const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(
-            color: Color(0xFF94A3B8),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF94A3B8),
+            fontSize: size.width < 600 ? 12 : 14,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -867,8 +982,10 @@ class _DashboardAlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(size.width < 600 ? 16 : 20),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(18),
@@ -877,23 +994,23 @@ class _DashboardAlertCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(size.width < 600 ? 10 : 12),
             decoration: BoxDecoration(
               color: color.withOpacity(0.15),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: size.width < 600 ? 18 : 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 15,
+                    fontSize: size.width < 600 ? 13 : 15,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -901,18 +1018,19 @@ class _DashboardAlertCard extends StatelessWidget {
                   description,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.6),
-                    fontSize: 13,
+                    fontSize: size.width < 600 ? 11 : 13,
                     height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             value,
             style: TextStyle(
               color: color,
-              fontSize: 13,
+              fontSize: size.width < 600 ? 11 : 13,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -922,7 +1040,6 @@ class _DashboardAlertCard extends StatelessWidget {
   }
 }
 
-// Mini Chart Painter
 class MiniChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -951,7 +1068,6 @@ class MiniChartPainter extends CustomPainter {
 
     canvas.drawPath(path, paint);
 
-    // Draw line
     final linePaint = Paint()
       ..color = const Color(0xFF8B5CF6)
       ..style = PaintingStyle.stroke
@@ -975,14 +1091,16 @@ class MiniChartPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// Stats Section
 class StatsSection extends StatelessWidget {
   const StatsSection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = size.width < 600 ? 20.0 : (size.width < 900 ? 40.0 : 60.0);
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 100),
+      padding: EdgeInsets.symmetric(vertical: padding, horizontal: padding),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.white.withOpacity(0.02), Colors.transparent],
@@ -991,31 +1109,61 @@ class StatsSection extends StatelessWidget {
           horizontal: BorderSide(color: Colors.white.withOpacity(0.05)),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _StatItem(
-            value: '3',
-            label: 'AI Agents',
-            icon: Icons.smart_toy_rounded,
-          ),
-          _StatItem(
-            value: '50M+',
-            label: 'Data Points',
-            icon: Icons.analytics_rounded,
-          ),
-          _StatItem(
-            value: '<100ms',
-            label: 'Response Time',
-            icon: Icons.speed_rounded,
-          ),
-          _StatItem(
-            value: '24/7',
-            label: 'Monitoring',
-            icon: Icons.update_rounded,
-          ),
-        ],
-      ),
+      child: size.width < 800
+          ? Column(
+              children: [
+                _StatItem(
+                  value: '3',
+                  label: 'AI Agents',
+                  icon: Icons.smart_toy_rounded,
+                ),
+                const SizedBox(height: 32),
+                _StatItem(
+                  value: '50M+',
+                  label: 'Data Points',
+                  icon: Icons.analytics_rounded,
+                ),
+                const SizedBox(height: 32),
+                _StatItem(
+                  value: '<100ms',
+                  label: 'Response Time',
+                  icon: Icons.speed_rounded,
+                ),
+                const SizedBox(height: 32),
+                _StatItem(
+                  value: '24/7',
+                  label: 'Monitoring',
+                  icon: Icons.update_rounded,
+                ),
+              ],
+            )
+          : Wrap(
+              spacing: 40,
+              runSpacing: 32,
+              alignment: WrapAlignment.spaceAround,
+              children: [
+                _StatItem(
+                  value: '3',
+                  label: 'AI Agents',
+                  icon: Icons.smart_toy_rounded,
+                ),
+                _StatItem(
+                  value: '50M+',
+                  label: 'Data Points',
+                  icon: Icons.analytics_rounded,
+                ),
+                _StatItem(
+                  value: '<100ms',
+                  label: 'Response Time',
+                  icon: Icons.speed_rounded,
+                ),
+                _StatItem(
+                  value: '24/7',
+                  label: 'Monitoring',
+                  icon: Icons.update_rounded,
+                ),
+              ],
+            ),
     );
   }
 }
@@ -1033,14 +1181,20 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Column(
       children: [
-        Icon(icon, color: const Color(0xFF8B5CF6), size: 32),
+        Icon(
+          icon,
+          color: const Color(0xFF8B5CF6),
+          size: size.width < 600 ? 24 : 32,
+        ),
         const SizedBox(height: 16),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 48,
+          style: TextStyle(
+            fontSize: size.width < 600 ? 32 : 48,
             fontWeight: FontWeight.w800,
             letterSpacing: -1,
           ),
@@ -1050,7 +1204,7 @@ class _StatItem extends StatelessWidget {
           label,
           style: TextStyle(
             color: Colors.white.withOpacity(0.6),
-            fontSize: 16,
+            fontSize: size.width < 600 ? 14 : 16,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -1059,96 +1213,108 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-// Modern Features Section
 class ModernFeaturesSection extends StatelessWidget {
   const ModernFeaturesSection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = size.width < 600 ? 20.0 : (size.width < 900 ? 40.0 : 60.0);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 100),
+      padding: EdgeInsets.symmetric(horizontal: padding),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Core Features',
             style: TextStyle(
-              fontSize: 56,
+              fontSize: size.width < 600 ? 32 : (size.width < 900 ? 42 : 56),
               fontWeight: FontWeight.w800,
               letterSpacing: -1.5,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
             'Everything you need for intelligent market monitoring',
             style: TextStyle(
               color: Colors.white.withOpacity(0.6),
-              fontSize: 20,
+              fontSize: size.width < 600 ? 14 : 20,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 80),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            mainAxisSpacing: 24,
-            crossAxisSpacing: 24,
-            childAspectRatio: 1.1,
-            children: [
-              _ModernFeatureCard(
-                icon: Icons.smart_toy_rounded,
-                title: 'AI Agents',
-                description:
-                    'Autonomous agents monitoring markets 24/7 with real-time analysis.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF6B46C1)],
-                ),
-              ),
-              _ModernFeatureCard(
-                icon: Icons.notifications_active_rounded,
-                title: 'Smart Alerts',
-                description:
-                    'Get instant notifications on critical risks and opportunities.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF1E40AF)],
-                ),
-              ),
-              _ModernFeatureCard(
-                icon: Icons.auto_graph_rounded,
-                title: 'Analytics',
-                description:
-                    'Advanced AI-powered market analysis and predictive insights.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
-                ),
-              ),
-              _ModernFeatureCard(
-                icon: Icons.newspaper_rounded,
-                title: 'News Analysis',
-                description:
-                    'AI scans thousands of sources to extract market-moving news.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                ),
-              ),
-              _ModernFeatureCard(
-                icon: Icons.psychology_rounded,
-                title: 'Sentiment',
-                description:
-                    'Real-time market sentiment analysis from social and news.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFEC4899), Color(0xFFDB2777)],
-                ),
-              ),
-              _ModernFeatureCard(
-                icon: Icons.security_rounded,
-                title: 'Risk Monitor',
-                description:
-                    'Continuous portfolio risk assessment with AI recommendations.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
-                ),
-              ),
-            ],
+          const SizedBox(height: 60),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              int crossAxisCount = size.width < 700
+                  ? 1
+                  : (size.width < 1100 ? 2 : 3);
+
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 20,
+                crossAxisSpacing: 20,
+                childAspectRatio: size.width < 700 ? 1.3 : 1.1,
+                children: [
+                  _ModernFeatureCard(
+                    icon: Icons.smart_toy_rounded,
+                    title: 'AI Agents',
+                    description:
+                        'Autonomous agents monitoring markets 24/7 with real-time analysis.',
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF6B46C1)],
+                    ),
+                  ),
+                  _ModernFeatureCard(
+                    icon: Icons.notifications_active_rounded,
+                    title: 'Smart Alerts',
+                    description:
+                        'Get instant notifications on critical risks and opportunities.',
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3B82F6), Color(0xFF1E40AF)],
+                    ),
+                  ),
+                  _ModernFeatureCard(
+                    icon: Icons.auto_graph_rounded,
+                    title: 'Analytics',
+                    description:
+                        'Advanced AI-powered market analysis and predictive insights.',
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    ),
+                  ),
+                  _ModernFeatureCard(
+                    icon: Icons.newspaper_rounded,
+                    title: 'News Analysis',
+                    description:
+                        'AI scans thousands of sources to extract market-moving news.',
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                    ),
+                  ),
+                  _ModernFeatureCard(
+                    icon: Icons.psychology_rounded,
+                    title: 'Sentiment',
+                    description:
+                        'Real-time market sentiment analysis from social and news.',
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEC4899), Color(0xFFDB2777)],
+                    ),
+                  ),
+                  _ModernFeatureCard(
+                    icon: Icons.security_rounded,
+                    title: 'Risk Monitor',
+                    description:
+                        'Continuous portfolio risk assessment with AI recommendations.',
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1178,16 +1344,18 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return MouseRegion(
       onEnter: (_) => setState(() => isHovered = true),
       onExit: (_) => setState(() => isHovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         transform: Matrix4.identity()..translate(0.0, isHovered ? -8.0 : 0.0),
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(size.width < 600 ? 20 : 32),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(isHovered ? 0.05 : 0.03),
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(size.width < 600 ? 20 : 28),
           border: Border.all(
             color: Colors.white.withOpacity(isHovered ? 0.15 : 0.08),
             width: 1,
@@ -1204,9 +1372,10 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(size.width < 600 ? 12 : 16),
               decoration: BoxDecoration(
                 gradient: widget.gradient,
                 borderRadius: BorderRadius.circular(18),
@@ -1218,19 +1387,26 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
                   ),
                 ],
               ),
-              child: Icon(widget.icon, color: Colors.white, size: 32),
+              child: Icon(
+                widget.icon,
+                color: Colors.white,
+                size: size.width < 600 ? 24 : 32,
+              ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: size.width < 600 ? 16 : 24),
             Text(
               widget.title,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: size.width < 600 ? 18 : 24,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: size.width < 600 ? 8 : 12),
             Text(
               widget.description,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.6),
-                fontSize: 15,
+                fontSize: size.width < 600 ? 13 : 15,
                 height: 1.6,
               ),
             ),
@@ -1241,70 +1417,105 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
   }
 }
 
-// How It Works Section
 class HowItWorksSection extends StatelessWidget {
   const HowItWorksSection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = size.width < 600 ? 20.0 : (size.width < 900 ? 40.0 : 60.0);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 100),
+      padding: EdgeInsets.symmetric(horizontal: padding),
       child: Column(
         children: [
-          const Text(
+          Text(
             'How It Works',
             style: TextStyle(
-              fontSize: 56,
+              fontSize: size.width < 600 ? 32 : (size.width < 900 ? 42 : 56),
               fontWeight: FontWeight.w800,
               letterSpacing: -1.5,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
             'Simple, automated, and intelligent',
             style: TextStyle(
               color: Colors.white.withOpacity(0.6),
-              fontSize: 20,
+              fontSize: size.width < 600 ? 14 : 20,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 80),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _ProcessStep(
-                  number: '01',
-                  title: 'Connect Your Data',
-                  description:
-                      'Link your portfolio and select markets to monitor. Our AI starts learning your preferences.',
-                  icon: Icons.link_rounded,
-                  color: const Color(0xFF8B5CF6),
+          const SizedBox(height: 60),
+          size.width < 900
+              ? Column(
+                  children: [
+                    _ProcessStep(
+                      number: '01',
+                      title: 'Connect Your Data',
+                      description:
+                          'Link your portfolio and select markets to monitor. Our AI starts learning your preferences.',
+                      icon: Icons.link_rounded,
+                      color: const Color(0xFF8B5CF6),
+                    ),
+                    const SizedBox(height: 24),
+                    _ProcessStep(
+                      number: '02',
+                      title: 'AI Analyzes 24/7',
+                      description:
+                          'Autonomous agents monitor news, sentiment, and market data in real-time with machine learning.',
+                      icon: Icons.psychology_rounded,
+                      color: const Color(0xFF3B82F6),
+                    ),
+                    const SizedBox(height: 24),
+                    _ProcessStep(
+                      number: '03',
+                      title: 'Get Insights',
+                      description:
+                          'Receive intelligent alerts, risk assessments, and actionable recommendations instantly.',
+                      icon: Icons.notifications_active_rounded,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _ProcessStep(
+                        number: '01',
+                        title: 'Connect Your Data',
+                        description:
+                            'Link your portfolio and select markets to monitor. Our AI starts learning your preferences.',
+                        icon: Icons.link_rounded,
+                        color: const Color(0xFF8B5CF6),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: _ProcessStep(
+                        number: '02',
+                        title: 'AI Analyzes 24/7',
+                        description:
+                            'Autonomous agents monitor news, sentiment, and market data in real-time with machine learning.',
+                        icon: Icons.psychology_rounded,
+                        color: const Color(0xFF3B82F6),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: _ProcessStep(
+                        number: '03',
+                        title: 'Get Insights',
+                        description:
+                            'Receive intelligent alerts, risk assessments, and actionable recommendations instantly.',
+                        icon: Icons.notifications_active_rounded,
+                        color: const Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 40),
-              Expanded(
-                child: _ProcessStep(
-                  number: '02',
-                  title: 'AI Analyzes 24/7',
-                  description:
-                      'Autonomous agents monitor news, sentiment, and market data in real-time with machine learning.',
-                  icon: Icons.psychology_rounded,
-                  color: const Color(0xFF3B82F6),
-                ),
-              ),
-              const SizedBox(width: 40),
-              Expanded(
-                child: _ProcessStep(
-                  number: '03',
-                  title: 'Get Insights',
-                  description:
-                      'Receive intelligent alerts, risk assessments, and actionable recommendations instantly.',
-                  icon: Icons.notifications_active_rounded,
-                  color: const Color(0xFF10B981),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -1335,16 +1546,18 @@ class _ProcessStepState extends State<_ProcessStep> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return MouseRegion(
       onEnter: (_) => setState(() => isHovered = true),
       onExit: (_) => setState(() => isHovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         transform: Matrix4.identity()..translate(0.0, isHovered ? -8.0 : 0.0),
-        padding: const EdgeInsets.all(40),
+        padding: EdgeInsets.all(size.width < 600 ? 24 : 40),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(isHovered ? 0.05 : 0.03),
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(size.width < 600 ? 20 : 32),
           border: Border.all(
             color: Colors.white.withOpacity(isHovered ? 0.15 : 0.08),
           ),
@@ -1364,7 +1577,7 @@ class _ProcessStepState extends State<_ProcessStep> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(size.width < 600 ? 14 : 20),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [widget.color, widget.color.withOpacity(0.7)],
@@ -1378,13 +1591,17 @@ class _ProcessStepState extends State<_ProcessStep> {
                       ),
                     ],
                   ),
-                  child: Icon(widget.icon, color: Colors.white, size: 32),
+                  child: Icon(
+                    widget.icon,
+                    color: Colors.white,
+                    size: size.width < 600 ? 24 : 32,
+                  ),
                 ),
                 const Spacer(),
                 Text(
                   widget.number,
                   style: TextStyle(
-                    fontSize: 48,
+                    fontSize: size.width < 600 ? 32 : 48,
                     fontWeight: FontWeight.w900,
                     color: widget.color.withOpacity(0.2),
                     letterSpacing: -2,
@@ -1392,17 +1609,20 @@ class _ProcessStepState extends State<_ProcessStep> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: size.width < 600 ? 20 : 32),
             Text(
               widget.title,
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: size.width < 600 ? 20 : 28,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: size.width < 600 ? 12 : 16),
             Text(
               widget.description,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.6),
-                fontSize: 16,
+                fontSize: size.width < 600 ? 14 : 16,
                 height: 1.7,
               ),
             ),
@@ -1413,28 +1633,31 @@ class _ProcessStepState extends State<_ProcessStep> {
   }
 }
 
-// Tech Stack Section
 class TechStackSection extends StatelessWidget {
   const TechStackSection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = size.width < 600 ? 20.0 : (size.width < 900 ? 40.0 : 60.0);
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 100),
+      padding: EdgeInsets.symmetric(vertical: padding, horizontal: padding),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Built With Modern Tech',
             style: TextStyle(
-              fontSize: 42,
+              fontSize: size.width < 600 ? 28 : 42,
               fontWeight: FontWeight.w800,
               letterSpacing: -1,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 60),
+          const SizedBox(height: 40),
           Wrap(
-            spacing: 24,
-            runSpacing: 24,
+            spacing: 16,
+            runSpacing: 16,
             alignment: WrapAlignment.center,
             children: [
               _TechBadge('Flutter', Icons.phone_android_rounded),
@@ -1466,12 +1689,17 @@ class _TechBadgeState extends State<_TechBadge> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return MouseRegion(
       onEnter: (_) => setState(() => isHovered = true),
       onExit: (_) => setState(() => isHovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        padding: EdgeInsets.symmetric(
+          horizontal: size.width < 600 ? 20 : 32,
+          vertical: size.width < 600 ? 14 : 20,
+        ),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(isHovered ? 0.05 : 0.03),
           borderRadius: BorderRadius.circular(20),
@@ -1482,11 +1710,18 @@ class _TechBadgeState extends State<_TechBadge> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(widget.icon, color: const Color(0xFF8B5CF6), size: 24),
-            const SizedBox(width: 12),
+            Icon(
+              widget.icon,
+              color: const Color(0xFF8B5CF6),
+              size: size.width < 600 ? 20 : 24,
+            ),
+            const SizedBox(width: 10),
             Text(
               widget.text,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: size.width < 600 ? 14 : 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -1495,22 +1730,24 @@ class _TechBadgeState extends State<_TechBadge> {
   }
 }
 
-// CTA Section
 class CTASection extends StatelessWidget {
   const CTASection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = size.width < 600 ? 20.0 : (size.width < 900 ? 40.0 : 60.0);
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 100),
-      padding: const EdgeInsets.all(80),
+      margin: EdgeInsets.symmetric(horizontal: padding),
+      padding: EdgeInsets.all(size.width < 600 ? 40 : 80),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF8B5CF6), Color(0xFF6B46C1)],
         ),
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(size.width < 600 ? 24 : 40),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF8B5CF6).withOpacity(0.3),
@@ -1521,27 +1758,29 @@ class CTASection extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Ready to Experience AI-Powered Trading?',
             style: TextStyle(
-              fontSize: 48,
+              fontSize: size.width < 600 ? 24 : (size.width < 900 ? 32 : 48),
               fontWeight: FontWeight.w900,
               letterSpacing: -1,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: size.width < 600 ? 12 : 20),
           Text(
             'Try our live demo and see how AI agents monitor your markets in real-time',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
-              fontSize: 20,
+              fontSize: size.width < 600 ? 14 : 20,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 40),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          SizedBox(height: size.width < 600 ? 24 : 40),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
             children: [
               Container(
                 decoration: BoxDecoration(
@@ -1565,23 +1804,27 @@ class CTASection extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF6B46C1),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 24,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: size.width < 600 ? 24 : 40,
+                      vertical: size.width < 600 ? 16 : 24,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 0,
                   ),
-                  child: const Row(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.play_arrow_rounded, size: 24),
-                      SizedBox(width: 12),
+                      Icon(
+                        Icons.play_arrow_rounded,
+                        size: size.width < 600 ? 20 : 24,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         'Try Live Demo',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: size.width < 600 ? 14 : 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1589,7 +1832,6 @@ class CTASection extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 20),
               OutlinedButton(
                 onPressed: () {
                   Navigator.push(
@@ -1598,24 +1840,29 @@ class CTASection extends StatelessWidget {
                   );
                 },
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 24,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: size.width < 600 ? 24 : 40,
+                    vertical: size.width < 600 ? 16 : 24,
                   ),
                   side: const BorderSide(color: Colors.white, width: 2),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Row(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.login_rounded, color: Colors.white, size: 24),
-                    SizedBox(width: 12),
+                    Icon(
+                      Icons.login_rounded,
+                      color: Colors.white,
+                      size: size.width < 600 ? 20 : 24,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       'Sign In',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: size.width < 600 ? 14 : 18,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1625,210 +1872,6 @@ class CTASection extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Modern Footer
-class ModernFooter extends StatelessWidget {
-  const ModernFooter({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 60),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
-      ),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF6B46C1)],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(
-                            Icons.auto_graph_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Aizanoi ',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'AI-powered financial intelligence\nfor smarter investment decisions.',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 16,
-                        height: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                        ),
-                      ),
-                      child: const Text(
-                        '🏆 Hackathon 2026 Project',
-                        style: TextStyle(
-                          color: Color(0xFFB794F6),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _FooterColumn(
-                  title: 'Product',
-                  links: ['Features', 'Demo', 'Docs', 'API'],
-                ),
-              ),
-              Expanded(
-                child: _FooterColumn(
-                  title: 'Resources',
-                  links: ['GitHub', 'Documentation', 'Support', 'Status'],
-                ),
-              ),
-              Expanded(
-                child: _FooterColumn(
-                  title: 'Team',
-                  links: ['About', 'Contact', 'Hackathon', 'Credits'],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 60),
-          Divider(color: Colors.white.withOpacity(0.1)),
-          const SizedBox(height: 30),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '© 2026 Aizanoi  • Built for Hackathon',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: 14,
-                ),
-              ),
-              Row(
-                children: [
-                  _SocialIcon(Icons.code_rounded, 'GitHub'),
-                  _SocialIcon(Icons.article_rounded, 'Docs'),
-                  _SocialIcon(Icons.email_rounded, 'Contact'),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FooterColumn extends StatelessWidget {
-  final String title;
-  final List<String> links;
-
-  const _FooterColumn({required this.title, required this.links});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 20),
-        ...links.map(
-          (link) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: Text(
-                link,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SocialIcon extends StatefulWidget {
-  final IconData icon;
-  final String label;
-
-  const _SocialIcon(this.icon, this.label);
-
-  @override
-  State<_SocialIcon> createState() => _SocialIconState();
-}
-
-class _SocialIconState extends State<_SocialIcon> {
-  bool isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => isHovered = true),
-      onExit: (_) => setState(() => isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(left: 12),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(isHovered ? 0.1 : 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.white.withOpacity(isHovered ? 0.2 : 0.1),
-          ),
-        ),
-        child: Icon(
-          widget.icon,
-          size: 20,
-          color: Colors.white.withOpacity(isHovered ? 0.9 : 0.6),
-        ),
       ),
     );
   }
