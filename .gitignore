@@ -1,0 +1,32 @@
+# === Claude Code (yerel oturum/worktree verisi — repoya girmesin) ===
+.claude/
+
+# === Flutter / Dart ===
+flutter_side/.dart_tool/
+flutter_side/.idea/
+flutter_side/build/
+flutter_side/.flutter-plugins
+flutter_side/.flutter-plugins-dependencies
+flutter_side/.packages
+flutter_side/.pub-cache/
+flutter_side/.pub/
+
+# Otomatik üretilen plugin registrant dosyaları
+flutter_side/linux/flutter/generated_plugin*
+flutter_side/macos/Flutter/GeneratedPluginRegistrant.swift
+flutter_side/windows/flutter/generated_plugin*
+flutter_side/ios/Flutter/Generated.xcconfig
+flutter_side/ios/Flutter/flutter_export_environment.sh
+flutter_side/android/.gradle/
+flutter_side/android/local.properties
+
+# === Genel ===
+*.log
+.DS_Store
+Thumbs.db
+
+# === Sırlar (asla commit'lenmesin) ===
+.env
+*.env
+*secret*
+*credentials*
