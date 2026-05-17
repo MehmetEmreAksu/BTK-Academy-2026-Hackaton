@@ -1,9 +1,51 @@
+import 'package:btk_byte_benders/auth/auth_service.dart';
 import 'package:btk_byte_benders/screens/user_screen.dart';
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final authService = AuthService();
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  void login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    try {
+      final response = await authService.signInWithEmailPassword(
+        email,
+        password,
+      );
+      if (response.session != null) {
+        // Login successful, navigate to user screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const UserScreen()),
+        );
+      } else {
+        // Handle login failure (e.g., show error message)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login failed. Please check your credentials.'),
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle any errors that occur during login
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('An error occurred: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,26 +77,16 @@ class LoginScreen extends StatelessWidget {
 
               const Text(
                 'Log in to continue using Risk Radar AI.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
 
               const SizedBox(height: 40),
 
-              buildInput(
-                'Email Address',
-                Icons.email_outlined,
-              ),
+              emailInput('Email Address', Icons.email_outlined),
 
               const SizedBox(height: 20),
 
-              buildInput(
-                'Password',
-                Icons.lock_outline,
-                true,
-              ),
+              passwordInput('Password', Icons.lock_outline, true),
 
               const SizedBox(height: 28),
 
@@ -69,19 +101,18 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
+                    /*login*/
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const UserScreen(),
+                        builder: (context) => const UserScreen(),
                       ),
                     );
                   },
+
                   child: const Text(
                     'Log In',
-                    style: TextStyle(
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
@@ -94,16 +125,13 @@ class LoginScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const SignUpScreen(),
+                        builder: (context) => const SignUpScreen(),
                       ),
                     );
                   },
-                  child: const Text(
-                    'Don’t have an account? Sign Up',
-                  ),
+                  child: const Text('Don’t have an account? Sign Up'),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -111,12 +139,30 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget buildInput(
-    String hint,
-    IconData icon, [
-    bool obscure = false,
-  ]) {
+  Widget emailInput(String hint, IconData icon, [bool obscure = false]) {
     return TextField(
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white54),
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: const Color(0xFF1B233B),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget passwordInput(String hint, IconData icon, [bool obscure = false]) {
+    return TextField(
+      controller: _passwordController,
+      keyboardType: TextInputType.emailAddress,
       obscureText: obscure,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
