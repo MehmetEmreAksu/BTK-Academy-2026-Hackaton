@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'package:btk_byte_benders/models/market_stock.dart';
+import 'package:btk_byte_benders/service/market_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -18,6 +20,11 @@ class _UserScreenState extends State<UserScreen> {
   int selectedIndex = 0;
   bool _showDesktopChat = true;
   bool _showMobileChatPanel = false;
+  List<MarketStock> marketStocks = [];
+  List<MarketStock> userStocks = []; // YENİ
+
+  bool isLoadingStocks = true;
+  bool isLoadingUserStocks = false;
 
   final TextEditingController _chatController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
@@ -38,6 +45,50 @@ class _UserScreenState extends State<UserScreen> {
       'time': '09:15 AM',
     },
   ];
+  @override
+  void initState() {
+    super.initState();
+    loadUserStocks();
+    loadStocks();
+  }
+
+  Future<void> loadStocks() async {
+    try {
+      final stocks = await MarketService.getStocks();
+
+      setState(() {
+        marketStocks = stocks;
+        isLoadingStocks = false;
+      });
+    } catch (e) {
+      print(e);
+
+      setState(() {
+        isLoadingStocks = false;
+      });
+    }
+  }
+
+  Future<void> loadUserStocks() async {
+    setState(() {
+      isLoadingUserStocks = true;
+    });
+
+    try {
+      final stocks = await MarketService.getUserStocks();
+
+      setState(() {
+        userStocks = stocks;
+        isLoadingUserStocks = false;
+      });
+    } catch (e) {
+      print("User stocks error: $e");
+
+      setState(() {
+        isLoadingUserStocks = false;
+      });
+    }
+  }
 
   void _sendMessage() {
     if (_chatController.text.trim().isEmpty) return;
@@ -276,63 +327,138 @@ class _UserScreenState extends State<UserScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  "Track your assets, profits and AI trading performance.",
-                  style: TextStyle(color: Colors.white60, fontSize: 15),
+                Text(
+                  "You have ${userStocks.length} selected stocks",
+                  style: const TextStyle(color: Colors.white60, fontSize: 15),
                 ),
                 const SizedBox(height: 28),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Wrap(
-                      spacing: 20,
-                      runSpacing: 20,
-                      children: [
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth > 600
-                                ? 260
-                                : constraints.maxWidth,
+
+                // Loading durumu
+                if (isLoadingUserStocks)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF8B5CF6),
+                      ),
+                    ),
+                  )
+                // Hisse yoksa
+                else if (userStocks.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 64,
+                            color: Colors.white.withOpacity(0.3),
                           ),
-                          child: statCard(
-                            "Total Balance",
-                            "\$124K",
-                            Icons.account_balance_wallet_rounded,
-                            Colors.green,
-                            "+12.5%",
+                          const SizedBox(height: 16),
+                          Text(
+                            "No stocks selected yet",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Go to Market tab to add stocks",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.3),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                // Hisseler varsa
+                else
+                  Column(
+                    children: userStocks.map((stock) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.08),
                           ),
                         ),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth > 600
-                                ? 260
-                                : constraints.maxWidth,
-                          ),
-                          child: statCard(
-                            "Assets",
-                            "18",
-                            Icons.stacked_bar_chart_rounded,
-                            Colors.blue,
-                            "Diversified",
-                          ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF8B5CF6),
+                                    Color(0xFF6D28D9),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                stock.symbol,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    stock.companyName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    stock.sector,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                            ),
+                          ],
                         ),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth > 600
-                                ? 260
-                                : constraints.maxWidth,
-                          ),
-                          child: statCard(
-                            "Monthly Profit",
-                            "\$12.8K",
-                            Icons.trending_up_rounded,
-                            const Color(0xFF8B5CF6),
-                            "This month",
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                      );
+                    }).toList(),
+                  ),
               ],
             ),
           ),
@@ -342,44 +468,276 @@ class _UserScreenState extends State<UserScreen> {
   }
 
   Widget _marketPage() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildTopbar(),
-          const SizedBox(height: 24),
-          glassContainer(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final financeStocks = marketStocks
+        .where((s) => s.sector == "Finance")
+        .toList();
+
+    final techStocks = marketStocks
+        .where((s) => s.sector.contains("Technology"))
+        .toList();
+
+    final energyStocks = marketStocks
+        .where(
+          (s) => s.sector.contains("Energy") || s.sector.contains("Utilities"),
+        )
+        .toList();
+
+    final otherStocks = marketStocks
+        .where(
+          (s) =>
+              s.sector != "Finance" &&
+              !s.sector.contains("Technology") &&
+              !s.sector.contains("Energy") &&
+              !s.sector.contains("Utilities"),
+        )
+        .toList();
+
+    Widget buildStockList(List<MarketStock> stocks) {
+      if (stocks.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Text(
+              "No stocks available",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 16,
+              ),
+            ),
+          ),
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.only(bottom: 8),
+        itemCount: stocks.length,
+        itemBuilder: (context, index) {
+          final stock = stocks[index];
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
+            ),
+            child: Row(
               children: [
-                const Text(
-                  "Market Analysis",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    stock.symbol,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                marketItem("S&P 500", "4,567.89", "+0.8%", Colors.green, "SPX"),
-                marketItem(
-                  "NASDAQ",
-                  "14,234.56",
-                  "+1.2%",
-                  Colors.green,
-                  "IXIC",
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        stock.companyName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        stock.sector,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                marketItem(
-                  "BTC/USD",
-                  "67,432.10",
-                  "+2.4%",
-                  Colors.green,
-                  "BTC",
+                const SizedBox(width: 12),
+                InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () async {
+                    final currentUser =
+                        Supabase.instance.client.auth.currentUser;
+
+                    if (currentUser == null) return;
+
+                    final newValue = !stock.isSelected;
+
+                    setState(() {
+                      stock.isSelected = newValue;
+                    });
+
+                    try {
+                      await MarketService.saveUserStock(
+                        userId: currentUser.id,
+                        symbol: stock.symbol,
+                        companyName: stock.companyName,
+                        sector: stock.sector,
+                        isSelected: newValue,
+                      );
+
+                      // Portfolio'yu yenile
+                      await loadUserStocks();
+                    } catch (e) {
+                      print("Error saving stock: $e");
+
+                      // Hata olursa eski haline döndür
+                      setState(() {
+                        stock.isSelected = !newValue;
+                      });
+                    }
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    width: 64,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: stock.isSelected
+                          ? const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                            )
+                          : null,
+                      color: stock.isSelected
+                          ? null
+                          : Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: stock.isSelected
+                            ? Colors.transparent
+                            : Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        AnimatedAlign(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInOut,
+                          alignment: stock.isSelected
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            margin: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              stock.isSelected ? Icons.check : Icons.close,
+                              size: 16,
+                              color: stock.isSelected
+                                  ? const Color(0xFF8B5CF6)
+                                  : Colors.grey.shade400,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+          );
+        },
+      );
+    }
+
+    return DefaultTabController(
+      length: 4,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildTopbar(),
+            const SizedBox(height: 24),
+            glassContainer(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Row(
+                    children: [
+                      Text(
+                        "Market Stocks",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    ),
+                    child: TabBar(
+                      dividerColor: Colors.transparent,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicator: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white54,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      tabs: const [
+                        Tab(text: "Finance"),
+                        Tab(text: "Tech"),
+                        Tab(text: "Energy"),
+                        Tab(text: "Other"),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: TabBarView(
+                      children: [
+                        buildStockList(financeStocks),
+                        buildStockList(techStocks),
+                        buildStockList(energyStocks),
+                        buildStockList(otherStocks),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
