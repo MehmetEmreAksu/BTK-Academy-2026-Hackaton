@@ -34,7 +34,6 @@ class _UserScreenState extends State<UserScreen> {
     {"title": "Portfolio", "icon": Icons.pie_chart_rounded},
     {"title": "Market", "icon": Icons.show_chart_rounded},
     {"title": "Alerts", "icon": Icons.notifications_active_rounded},
-    {"title": "Settings", "icon": Icons.settings_rounded},
   ];
 
   final List<Map<String, dynamic>> _chatMessages = [
@@ -259,8 +258,7 @@ class _UserScreenState extends State<UserScreen> {
         return _marketPage();
       case 3:
         return _alertsPage();
-      case 4:
-        return _settingsPage();
+
       default:
         return _dashboardPage(isDesktop, isTablet);
     }
@@ -272,35 +270,348 @@ class _UserScreenState extends State<UserScreen> {
         children: [
           _buildTopbar(),
           const SizedBox(height: 24),
-          _buildHeroCard(),
-          const SizedBox(height: 24),
-          if (isDesktop)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    children: [
-                      _buildStatsGrid(isMobile: false, isTablet: false),
-                      const SizedBox(height: 24),
-                      _buildActivityPanel(),
-                    ],
-                  ),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final bool isWide = constraints.maxWidth > 1150;
+
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 6, child: _buildNewsSection()),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        children: [
+                          _buildMarketOverview(),
+                          const SizedBox(height: 24),
+                          _buildYourPortfolioCard(),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return Column(
+                children: [
+                  _buildNewsSection(),
+                  const SizedBox(height: 24),
+                  _buildMarketOverview(),
+                  const SizedBox(height: 24),
+                  _buildYourPortfolioCard(),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNewsSection() {
+    final newsItems = [
+      {
+        "title": "Fed Signals Possible Rate Pause",
+        "source": "Bloomberg",
+        "time": "12 min ago",
+        "description":
+            "Markets reacted positively after the Federal Reserve hinted at a possible pause in future interest rate hikes.",
+        "color": Colors.blue,
+        "icon": Icons.trending_up_rounded,
+      },
+      {
+        "title": "Tesla Surges After Delivery Report",
+        "source": "Reuters",
+        "time": "25 min ago",
+        "description":
+            "Tesla shares gained momentum following stronger-than-expected delivery numbers this quarter.",
+        "color": const Color(0xFF8B5CF6),
+        "icon": Icons.electric_car_rounded,
+      },
+      {
+        "title": "Oil Prices Continue Rising",
+        "source": "CNBC",
+        "time": "41 min ago",
+        "description":
+            "Energy sector stocks climbed as crude oil prices extended gains amid supply concerns.",
+        "color": Colors.orange,
+        "icon": Icons.local_fire_department_rounded,
+      },
+      {
+        "title": "AI Stocks Lead Tech Rally",
+        "source": "MarketWatch",
+        "time": "1 hour ago",
+        "description":
+            "Artificial intelligence companies continue outperforming broader technology indexes.",
+        "color": Colors.green,
+        "icon": Icons.memory_rounded,
+      },
+    ];
+
+    return glassContainer(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Text(
+                "Latest News",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(width: 24),
-                Expanded(flex: 4, child: _buildMarketOverview()),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: newsItems.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 18),
+            itemBuilder: (context, index) {
+              final item = newsItems[index];
+
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: (item["color"] as Color).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Icon(
+                        item["icon"] as IconData,
+                        color: item["color"] as Color,
+                        size: 24,
+                      ),
+                    ),
+
+                    const SizedBox(width: 18),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            runSpacing: 8,
+                            children: [
+                              Text(
+                                item["title"] as String,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                item["time"] as String,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.4),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            item["source"] as String,
+                            style: TextStyle(
+                              color: item["color"] as Color,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          Text(
+                            item["description"] as String,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.65),
+                              fontSize: 14,
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildYourPortfolioCard() {
+    return glassContainer(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Text(
+                "Your Portfolio",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Text(
+            "${userStocks.length} selected assets",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.55),
+              fontSize: 14,
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          if (isLoadingUserStocks)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+              ),
+            )
+          else if (userStocks.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.pie_chart_outline_rounded,
+                      size: 60,
+                      color: Colors.white.withOpacity(0.25),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "No portfolio assets yet",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.45),
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
           else
-            Column(
-              children: [
-                _buildStatsGrid(isMobile: true, isTablet: isTablet),
-                const SizedBox(height: 24),
-                _buildMarketOverview(),
-                const SizedBox(height: 24),
-                _buildActivityPanel(),
-              ],
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: userStocks.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 14),
+              itemBuilder: (context, index) {
+                final stock = userStocks[index];
+
+                return Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          stock.symbol,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 16),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              stock.companyName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+
+                            const SizedBox(height: 6),
+
+                            Text(
+                              stock.sector,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.green,
+                          size: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
         ],
       ),
@@ -967,41 +1278,6 @@ class _UserScreenState extends State<UserScreen> {
                     height: 1.5,
                     fontSize: 14,
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _settingsPage() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildTopbar(),
-          const SizedBox(height: 24),
-          glassContainer(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Settings",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _settingsTile(Icons.person_outline_rounded, "Account Settings"),
-                _settingsTile(Icons.security_rounded, "Security"),
-                _settingsTile(Icons.palette_outlined, "Appearance"),
-                _settingsTile(
-                  Icons.notifications_none_rounded,
-                  "Notifications",
                 ),
               ],
             ),
