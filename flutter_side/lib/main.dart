@@ -16,8 +16,8 @@ Future<void> openLink() async {
 Future<void> main() async {
   // Supabase Setup
   await Supabase.initialize(
-    url: 'https://your-supabase-url.supabase.co',
-    anonKey: 'your-supabase-anon-key',
+    url: 'SUPABASE_URL_BURAYA',
+    anonKey: 'SUPABASE_ANON_KEY_BURAYA',
   );
 
   runApp(const RiskRadarLandingPage());
