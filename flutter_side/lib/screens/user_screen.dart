@@ -743,39 +743,230 @@ class _UserScreenState extends State<UserScreen> {
   }
 
   Widget _alertsPage() {
-    return SingleChildScrollView(
-      child: Column(
+    return DefaultTabController(
+      length: 2,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildTopbar(),
+            const SizedBox(height: 24),
+            glassContainer(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Text(
+                        "Alerts Center",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // TABS
+                  Container(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    ),
+                    child: TabBar(
+                      dividerColor: Colors.transparent,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicator: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white54,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      tabs: const [
+                        Tab(
+                          icon: Icon(Icons.mail_rounded),
+                          text: "Mail Alerts",
+                        ),
+                        Tab(
+                          icon: Icon(Icons.language_rounded),
+                          text: "Tweets & News",
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.62,
+                    child: TabBarView(
+                      children: [
+                        // MAIL ALERTS
+                        ListView(
+                          children: [
+                            _alertCard(
+                              title: "Critical Portfolio Risk",
+                              source: "AI Risk Agent",
+                              description:
+                                  "High volatility detected in semiconductor holdings.",
+                              time: "2 min ago",
+                              color: Colors.red,
+                              icon: Icons.warning_rounded,
+                            ),
+                            _alertCard(
+                              title: "Fed Rate Update",
+                              source: "Macro Intelligence",
+                              description:
+                                  "AI detected increased probability of interest rate pause.",
+                              time: "12 min ago",
+                              color: Colors.blue,
+                              icon: Icons.mail_rounded,
+                            ),
+                            _alertCard(
+                              title: "Portfolio Rebalance",
+                              source: "Strategy Agent",
+                              description:
+                                  "Defensive sector exposure recommended for next 48 hours.",
+                              time: "28 min ago",
+                              color: Colors.green,
+                              icon: Icons.auto_graph_rounded,
+                            ),
+                          ],
+                        ),
+
+                        // TWEETS & NEWS
+                        ListView(
+                          children: [
+                            _alertCard(
+                              title: "Tesla Mention Spike",
+                              source: "Twitter/X",
+                              description:
+                                  "Social sentiment increased by 34% after earnings rumors.",
+                              time: "1 min ago",
+                              color: const Color(0xFF8B5CF6),
+                              icon: Icons.trending_up_rounded,
+                            ),
+                            _alertCard(
+                              title: "Breaking Market News",
+                              source: "Bloomberg",
+                              description:
+                                  "Oil prices jump after unexpected supply chain disruption.",
+                              time: "7 min ago",
+                              color: Colors.orange,
+                              icon: Icons.newspaper_rounded,
+                            ),
+                            _alertCard(
+                              title: "Banking Sector Trend",
+                              source: "Reuters",
+                              description:
+                                  "Large institutions show increased short-term accumulation.",
+                              time: "15 min ago",
+                              color: Colors.cyan,
+                              icon: Icons.insights_rounded,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _alertCard({
+    required String title,
+    required String source,
+    required String description,
+    required String time,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTopbar(),
-          const SizedBox(height: 24),
-          glassContainer(
-            padding: const EdgeInsets.all(28),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+
+          const SizedBox(width: 18),
+
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Smart Alerts",
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Text(
+                      time,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  source,
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 24),
-                activityItem(
-                  "High Volatility",
-                  "Semiconductor sector volatility increased.",
-                  Colors.orange,
-                ),
-                activityItem(
-                  "AI Signal",
-                  "Strong buy signal detected for NVDA.",
-                  Colors.green,
-                ),
-                activityItem(
-                  "Fed News",
-                  "Interest rate announcement incoming.",
-                  Colors.blue,
+
+                const SizedBox(height: 10),
+
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.65),
+                    height: 1.5,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
