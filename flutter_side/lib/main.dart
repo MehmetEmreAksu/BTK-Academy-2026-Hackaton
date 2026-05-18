@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:btk_byte_benders/screens/login_screen.dart';
 import 'package:btk_byte_benders/screens/signup_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,11 +14,17 @@ Future<void> openLink() async {
   await launchUrl(url, mode: LaunchMode.platformDefault);
 }
 
-Future<void> main() async {
-  // Supabase Setup
+void main() async {
+  // Flutter binding'i hazırla (async işlemler için şart)
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // .env dosyasını yükle
+  await dotenv.load(fileName: ".env");
+
+  // Supabase'i .env içindeki bilgilerle başlat
   await Supabase.initialize(
-    url: 'SUPABASE_URL_BURAYA',
-    anonKey: 'SUPABASE_ANON_KEY_BURAYA',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   runApp(const RiskRadarLandingPage());

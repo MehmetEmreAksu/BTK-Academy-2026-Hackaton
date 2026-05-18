@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'package:btk_byte_benders/models/market_stock.dart';
+import 'package:btk_byte_benders/service/market_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -18,6 +20,11 @@ class _UserScreenState extends State<UserScreen> {
   int selectedIndex = 0;
   bool _showDesktopChat = true;
   bool _showMobileChatPanel = false;
+  List<MarketStock> marketStocks = [];
+  List<MarketStock> userStocks = []; // YENİ
+
+  bool isLoadingStocks = true;
+  bool isLoadingUserStocks = false;
 
   final TextEditingController _chatController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
@@ -27,7 +34,6 @@ class _UserScreenState extends State<UserScreen> {
     {"title": "Portfolio", "icon": Icons.pie_chart_rounded},
     {"title": "Market", "icon": Icons.show_chart_rounded},
     {"title": "Alerts", "icon": Icons.notifications_active_rounded},
-    {"title": "Settings", "icon": Icons.settings_rounded},
   ];
 
   final List<Map<String, dynamic>> _chatMessages = [
@@ -38,6 +44,50 @@ class _UserScreenState extends State<UserScreen> {
       'time': '09:15 AM',
     },
   ];
+  @override
+  void initState() {
+    super.initState();
+    loadUserStocks();
+    loadStocks();
+  }
+
+  Future<void> loadStocks() async {
+    try {
+      final stocks = await MarketService.getStocks();
+
+      setState(() {
+        marketStocks = stocks;
+        isLoadingStocks = false;
+      });
+    } catch (e) {
+      print(e);
+
+      setState(() {
+        isLoadingStocks = false;
+      });
+    }
+  }
+
+  Future<void> loadUserStocks() async {
+    setState(() {
+      isLoadingUserStocks = true;
+    });
+
+    try {
+      final stocks = await MarketService.getUserStocks();
+
+      setState(() {
+        userStocks = stocks;
+        isLoadingUserStocks = false;
+      });
+    } catch (e) {
+      print("User stocks error: $e");
+
+      setState(() {
+        isLoadingUserStocks = false;
+      });
+    }
+  }
 
   void _sendMessage() {
     if (_chatController.text.trim().isEmpty) return;
@@ -208,8 +258,7 @@ class _UserScreenState extends State<UserScreen> {
         return _marketPage();
       case 3:
         return _alertsPage();
-      case 4:
-        return _settingsPage();
+
       default:
         return _dashboardPage(isDesktop, isTablet);
     }
@@ -221,35 +270,348 @@ class _UserScreenState extends State<UserScreen> {
         children: [
           _buildTopbar(),
           const SizedBox(height: 24),
-          _buildHeroCard(),
-          const SizedBox(height: 24),
-          if (isDesktop)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    children: [
-                      _buildStatsGrid(isMobile: false, isTablet: false),
-                      const SizedBox(height: 24),
-                      _buildActivityPanel(),
-                    ],
-                  ),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final bool isWide = constraints.maxWidth > 1150;
+
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 6, child: _buildNewsSection()),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        children: [
+                          _buildMarketOverview(),
+                          const SizedBox(height: 24),
+                          _buildYourPortfolioCard(),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return Column(
+                children: [
+                  _buildNewsSection(),
+                  const SizedBox(height: 24),
+                  _buildMarketOverview(),
+                  const SizedBox(height: 24),
+                  _buildYourPortfolioCard(),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNewsSection() {
+    final newsItems = [
+      {
+        "title": "Fed Signals Possible Rate Pause",
+        "source": "Bloomberg",
+        "time": "12 min ago",
+        "description":
+            "Markets reacted positively after the Federal Reserve hinted at a possible pause in future interest rate hikes.",
+        "color": Colors.blue,
+        "icon": Icons.trending_up_rounded,
+      },
+      {
+        "title": "Tesla Surges After Delivery Report",
+        "source": "Reuters",
+        "time": "25 min ago",
+        "description":
+            "Tesla shares gained momentum following stronger-than-expected delivery numbers this quarter.",
+        "color": const Color(0xFF8B5CF6),
+        "icon": Icons.electric_car_rounded,
+      },
+      {
+        "title": "Oil Prices Continue Rising",
+        "source": "CNBC",
+        "time": "41 min ago",
+        "description":
+            "Energy sector stocks climbed as crude oil prices extended gains amid supply concerns.",
+        "color": Colors.orange,
+        "icon": Icons.local_fire_department_rounded,
+      },
+      {
+        "title": "AI Stocks Lead Tech Rally",
+        "source": "MarketWatch",
+        "time": "1 hour ago",
+        "description":
+            "Artificial intelligence companies continue outperforming broader technology indexes.",
+        "color": Colors.green,
+        "icon": Icons.memory_rounded,
+      },
+    ];
+
+    return glassContainer(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Text(
+                "Latest News",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(width: 24),
-                Expanded(flex: 4, child: _buildMarketOverview()),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: newsItems.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 18),
+            itemBuilder: (context, index) {
+              final item = newsItems[index];
+
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: (item["color"] as Color).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Icon(
+                        item["icon"] as IconData,
+                        color: item["color"] as Color,
+                        size: 24,
+                      ),
+                    ),
+
+                    const SizedBox(width: 18),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            runSpacing: 8,
+                            children: [
+                              Text(
+                                item["title"] as String,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                item["time"] as String,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.4),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            item["source"] as String,
+                            style: TextStyle(
+                              color: item["color"] as Color,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          Text(
+                            item["description"] as String,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.65),
+                              fontSize: 14,
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildYourPortfolioCard() {
+    return glassContainer(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Text(
+                "Your Portfolio",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Text(
+            "${userStocks.length} selected assets",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.55),
+              fontSize: 14,
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          if (isLoadingUserStocks)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+              ),
+            )
+          else if (userStocks.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.pie_chart_outline_rounded,
+                      size: 60,
+                      color: Colors.white.withOpacity(0.25),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "No portfolio assets yet",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.45),
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
           else
-            Column(
-              children: [
-                _buildStatsGrid(isMobile: true, isTablet: isTablet),
-                const SizedBox(height: 24),
-                _buildMarketOverview(),
-                const SizedBox(height: 24),
-                _buildActivityPanel(),
-              ],
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: userStocks.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 14),
+              itemBuilder: (context, index) {
+                final stock = userStocks[index];
+
+                return Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          stock.symbol,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 16),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              stock.companyName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+
+                            const SizedBox(height: 6),
+
+                            Text(
+                              stock.sector,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.green,
+                          size: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
         ],
       ),
@@ -276,63 +638,138 @@ class _UserScreenState extends State<UserScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  "Track your assets, profits and AI trading performance.",
-                  style: TextStyle(color: Colors.white60, fontSize: 15),
+                Text(
+                  "You have ${userStocks.length} selected stocks",
+                  style: const TextStyle(color: Colors.white60, fontSize: 15),
                 ),
                 const SizedBox(height: 28),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Wrap(
-                      spacing: 20,
-                      runSpacing: 20,
-                      children: [
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth > 600
-                                ? 260
-                                : constraints.maxWidth,
+
+                // Loading durumu
+                if (isLoadingUserStocks)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF8B5CF6),
+                      ),
+                    ),
+                  )
+                // Hisse yoksa
+                else if (userStocks.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 64,
+                            color: Colors.white.withOpacity(0.3),
                           ),
-                          child: statCard(
-                            "Total Balance",
-                            "\$124K",
-                            Icons.account_balance_wallet_rounded,
-                            Colors.green,
-                            "+12.5%",
+                          const SizedBox(height: 16),
+                          Text(
+                            "No stocks selected yet",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Go to Market tab to add stocks",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.3),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                // Hisseler varsa
+                else
+                  Column(
+                    children: userStocks.map((stock) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.08),
                           ),
                         ),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth > 600
-                                ? 260
-                                : constraints.maxWidth,
-                          ),
-                          child: statCard(
-                            "Assets",
-                            "18",
-                            Icons.stacked_bar_chart_rounded,
-                            Colors.blue,
-                            "Diversified",
-                          ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF8B5CF6),
+                                    Color(0xFF6D28D9),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                stock.symbol,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    stock.companyName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    stock.sector,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                            ),
+                          ],
                         ),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth > 600
-                                ? 260
-                                : constraints.maxWidth,
-                          ),
-                          child: statCard(
-                            "Monthly Profit",
-                            "\$12.8K",
-                            Icons.trending_up_rounded,
-                            const Color(0xFF8B5CF6),
-                            "This month",
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                      );
+                    }).toList(),
+                  ),
               ],
             ),
           ),
@@ -342,142 +779,507 @@ class _UserScreenState extends State<UserScreen> {
   }
 
   Widget _marketPage() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildTopbar(),
-          const SizedBox(height: 24),
-          glassContainer(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final financeStocks = marketStocks
+        .where((s) => s.sector == "Finance")
+        .toList();
+
+    final techStocks = marketStocks
+        .where((s) => s.sector.contains("Technology"))
+        .toList();
+
+    final energyStocks = marketStocks
+        .where(
+          (s) => s.sector.contains("Energy") || s.sector.contains("Utilities"),
+        )
+        .toList();
+
+    final otherStocks = marketStocks
+        .where(
+          (s) =>
+              s.sector != "Finance" &&
+              !s.sector.contains("Technology") &&
+              !s.sector.contains("Energy") &&
+              !s.sector.contains("Utilities"),
+        )
+        .toList();
+
+    Widget buildStockList(List<MarketStock> stocks) {
+      if (stocks.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Text(
+              "No stocks available",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 16,
+              ),
+            ),
+          ),
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.only(bottom: 8),
+        itemCount: stocks.length,
+        itemBuilder: (context, index) {
+          final stock = stocks[index];
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
+            ),
+            child: Row(
               children: [
-                const Text(
-                  "Market Analysis",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    stock.symbol,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                marketItem("S&P 500", "4,567.89", "+0.8%", Colors.green, "SPX"),
-                marketItem(
-                  "NASDAQ",
-                  "14,234.56",
-                  "+1.2%",
-                  Colors.green,
-                  "IXIC",
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        stock.companyName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        stock.sector,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                marketItem(
-                  "BTC/USD",
-                  "67,432.10",
-                  "+2.4%",
-                  Colors.green,
-                  "BTC",
+                const SizedBox(width: 12),
+                InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () async {
+                    final currentUser =
+                        Supabase.instance.client.auth.currentUser;
+
+                    if (currentUser == null) return;
+
+                    final newValue = !stock.isSelected;
+
+                    setState(() {
+                      stock.isSelected = newValue;
+                    });
+
+                    try {
+                      await MarketService.saveUserStock(
+                        userId: currentUser.id,
+                        symbol: stock.symbol,
+                        companyName: stock.companyName,
+                        sector: stock.sector,
+                        isSelected: newValue,
+                      );
+
+                      // Portfolio'yu yenile
+                      await loadUserStocks();
+                    } catch (e) {
+                      print("Error saving stock: $e");
+
+                      // Hata olursa eski haline döndür
+                      setState(() {
+                        stock.isSelected = !newValue;
+                      });
+                    }
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    width: 64,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: stock.isSelected
+                          ? const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                            )
+                          : null,
+                      color: stock.isSelected
+                          ? null
+                          : Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: stock.isSelected
+                            ? Colors.transparent
+                            : Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        AnimatedAlign(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInOut,
+                          alignment: stock.isSelected
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            margin: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              stock.isSelected ? Icons.check : Icons.close,
+                              size: 16,
+                              color: stock.isSelected
+                                  ? const Color(0xFF8B5CF6)
+                                  : Colors.grey.shade400,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+          );
+        },
+      );
+    }
+
+    return DefaultTabController(
+      length: 4,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildTopbar(),
+            const SizedBox(height: 24),
+            glassContainer(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Row(
+                    children: [
+                      Text(
+                        "Market Stocks",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    ),
+                    child: TabBar(
+                      dividerColor: Colors.transparent,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicator: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white54,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      tabs: const [
+                        Tab(text: "Finance"),
+                        Tab(text: "Tech"),
+                        Tab(text: "Energy"),
+                        Tab(text: "Other"),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: TabBarView(
+                      children: [
+                        buildStockList(financeStocks),
+                        buildStockList(techStocks),
+                        buildStockList(energyStocks),
+                        buildStockList(otherStocks),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _alertsPage() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildTopbar(),
-          const SizedBox(height: 24),
-          glassContainer(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Smart Alerts",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
+    return DefaultTabController(
+      length: 2,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildTopbar(),
+            const SizedBox(height: 24),
+            glassContainer(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Text(
+                        "Alerts Center",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
-                FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _fetchAlerts(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: CircularProgressIndicator(),
-                      );
-                    }
-                    if (snapshot.hasError) {
-                      return Text(
-                        "Hata: ${snapshot.error}",
-                        style: const TextStyle(color: Colors.redAccent),
-                      );
-                    }
-                    final alerts = snapshot.data ?? [];
-                    if (alerts.isEmpty) {
-                      return const Text(
-                        "Su an riskli bir uyari yok.",
-                        style: TextStyle(color: Colors.white60),
-                      );
-                    }
-                    return Column(
-                      children: alerts.map((a) {
-                        final level = (a['level'] ?? '').toString();
-                        final color = level == 'YUKSEK'
-                            ? Colors.red
-                            : level == 'ORTA'
-                            ? Colors.orange
-                            : Colors.green;
-                        return activityItem(
-                          "${a['symbol']} - ${a['risk_score']}/100 ($level)",
-                          (a['reason'] ?? '').toString(),
-                          color,
-                        );
-                      }).toList(),
-                    );
-                  },
+                DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.white.withOpacity(0.06)),
+                        ),
+                        child: TabBar(
+                          dividerColor: Colors.transparent,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          indicator: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          labelColor: Colors.white,
+                          unselectedLabelColor: Colors.white54,
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                          tabs: const [
+                            Tab(icon: Icon(Icons.warning_amber_rounded), text: "Risk Alerts"),
+                            Tab(icon: Icon(Icons.language_rounded), text: "Tweets & News"),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        height: 500,
+                        child: TabBarView(
+                          children: [
+                            // TAB 1: Gerçek Supabase verisi
+                            FutureBuilder<List<Map<String, dynamic>>>(
+                              future: _fetchAlerts(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+                                if (snapshot.hasError) {
+                                  return Center(
+                                    child: Text(
+                                      "Hata: ${snapshot.error}",
+                                      style: const TextStyle(color: Colors.redAccent),
+                                    ),
+                                  );
+                                }
+                                final alerts = snapshot.data ?? [];
+                                if (alerts.isEmpty) {
+                                  return const Center(
+                                    child: Text(
+                                      "Su an riskli bir uyari yok.",
+                                      style: TextStyle(color: Colors.white60),
+                                    ),
+                                  );
+                                }
+                                return ListView(
+                                  children: alerts.map((a) {
+                                    final level = (a['level'] ?? '').toString();
+                                    final color = level == 'YUKSEK'
+                                        ? Colors.red
+                                        : level == 'ORTA'
+                                        ? Colors.orange
+                                        : Colors.green;
+                                    return activityItem(
+                                      "${a['symbol']} - ${a['risk_score']}/100 ($level)",
+                                      (a['reason'] ?? '').toString(),
+                                      color,
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
+                            // TAB 2: Tweets & News
+                            ListView(
+                              children: [
+                                _alertCard(
+                                  title: "Tesla Mention Spike",
+                                  source: "Twitter/X",
+                                  description: "Social sentiment increased by 34% after earnings rumors.",
+                                  time: "1 min ago",
+                                  color: const Color(0xFF8B5CF6),
+                                  icon: Icons.trending_up_rounded,
+                                ),
+                                _alertCard(
+                                  title: "Breaking Market News",
+                                  source: "Bloomberg",
+                                  description: "Oil prices jump after unexpected supply chain disruption.",
+                                  time: "7 min ago",
+                                  color: Colors.orange,
+                                  icon: Icons.newspaper_rounded,
+                                ),
+                                _alertCard(
+                                  title: "Banking Sector Trend",
+                                  source: "Reuters",
+                                  description: "Large institutions show increased short-term accumulation.",
+                                  time: "15 min ago",
+                                  color: Colors.cyan,
+                                  icon: Icons.insights_rounded,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _settingsPage() {
-    return SingleChildScrollView(
-      child: Column(
+  Widget _alertCard({
+    required String title,
+    required String source,
+    required String description,
+    required String time,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTopbar(),
-          const SizedBox(height: 24),
-          glassContainer(
-            padding: const EdgeInsets.all(28),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+
+          const SizedBox(width: 18),
+
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Settings",
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Text(
+                      time,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  source,
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 24),
-                _settingsTile(Icons.person_outline_rounded, "Account Settings"),
-                _settingsTile(Icons.security_rounded, "Security"),
-                _settingsTile(Icons.palette_outlined, "Appearance"),
-                _settingsTile(
-                  Icons.notifications_none_rounded,
-                  "Notifications",
+
+                const SizedBox(height: 10),
+
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.65),
+                    height: 1.5,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
