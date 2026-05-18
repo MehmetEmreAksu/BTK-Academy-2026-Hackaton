@@ -1,0 +1,57 @@
+{
+  "name": "BTK_Agent_W2_GunlukRapor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "triggerAtHour": 9 }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-200, 0],
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "name": "Her Sabah 09:00"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  u.id   AS user_id,\n  u.name AS name,\n  u.email AS email,\n  string_agg(\n    r.symbol || ' - ' || r.level || ' (' || r.risk_score || '/100): ' || r.reason,\n    E'\\n'\n    ORDER BY r.risk_score DESC\n  ) AS rapor,\n  count(*) AS adet\nFROM users u\nJOIN user_portfolios p ON p.user_id = u.id\nJOIN risk_scores r ON r.symbol = p.symbol\nWHERE r.created_at >= now() - interval '24 hours'\n  AND u.email IS NOT NULL\n  AND u.email <> ''\nGROUP BY u.id, u.name, u.email;"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [20, 0],
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "name": "Gunluk Riskleri Topla"
+    },
+    {
+      "parameters": {
+        "fromEmail": "SENIN_GMAIL@gmail.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Gunluk Risk Raporu - {{ $now.format('dd.MM.yyyy') }}",
+        "emailFormat": "text",
+        "text": "=Merhaba {{ $json.name }},\n\nTakip ettigin firmalar icin son 24 saatteki risk ozeti ({{ $json.adet }} kayit):\n\n{{ $json.rapor }}\n\n-- BTK Agent (otomatik gunluk rapor)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [240, 0],
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "name": "Mail Gonder (SMTP)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Her Sabah 09:00": {
+      "main": [[{ "node": "Gunluk Riskleri Topla", "type": "main", "index": 0 }]]
+    },
+    "Gunluk Riskleri Topla": {
+      "main": [[{ "node": "Mail Gonder (SMTP)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

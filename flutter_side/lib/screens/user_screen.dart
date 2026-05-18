@@ -404,20 +404,45 @@ class _UserScreenState extends State<UserScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                activityItem(
-                  "High Volatility",
-                  "Semiconductor sector volatility increased.",
-                  Colors.orange,
-                ),
-                activityItem(
-                  "AI Signal",
-                  "Strong buy signal detected for NVDA.",
-                  Colors.green,
-                ),
-                activityItem(
-                  "Fed News",
-                  "Interest rate announcement incoming.",
-                  Colors.blue,
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _fetchAlerts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: CircularProgressIndicator(),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return Text(
+                        "Hata: ${snapshot.error}",
+                        style: const TextStyle(color: Colors.redAccent),
+                      );
+                    }
+                    final alerts = snapshot.data ?? [];
+                    if (alerts.isEmpty) {
+                      return const Text(
+                        "Su an riskli bir uyari yok.",
+                        style: TextStyle(color: Colors.white60),
+                      );
+                    }
+                    return Column(
+                      children: alerts.map((a) {
+                        final level = (a['level'] ?? '').toString();
+                        final color = level == 'YUKSEK'
+                            ? Colors.red
+                            : level == 'ORTA'
+                            ? Colors.orange
+                            : Colors.green;
+                        return activityItem(
+                          "${a['symbol']} - ${a['risk_score']}/100 ($level)",
+                          (a['reason'] ?? '').toString(),
+                          color,
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
               ],
             ),
@@ -1162,6 +1187,17 @@ class _UserScreenState extends State<UserScreen> {
         ),
       ),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchAlerts() async {
+    final supabase = Supabase.instance.client;
+    final data = await supabase
+        .from('risk_scores')
+        .select('symbol, risk_score, level, reason, created_at')
+        .gte('risk_score', 70)
+        .order('created_at', ascending: false)
+        .limit(20);
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Widget activityItem(String title, String desc, Color color) {

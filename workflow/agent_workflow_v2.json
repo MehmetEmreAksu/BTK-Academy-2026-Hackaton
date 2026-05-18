@@ -1,0 +1,161 @@
+{
+  "name": "BTK_Agent_v2_Tweet_Haber",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-300, 0],
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "Manuel Tetik (test)"
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.tweet_id, t.tweet_text, m.symbol AS company_code\nFROM financial_tweets t\nJOIN market_stocks m\n  ON t.tweet_text ILIKE '%' || m.company_name || '%'\n  OR t.tweet_text ~* ('\\m' || m.symbol || '\\M')\nWHERE t.is_processed = false\nLIMIT 10;"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-60, -200],
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "Tweet Oku (siniflandir)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Sen finansal risk analisti bir asistansin. Su firmaya ait bir TWEET veriyorum. Firma sembolu belli: {{ $json.company_code }}\n\n1. Bu tweet {{ $json.company_code }} firmasi icin ne kadar riskli? 0-100 skorla.\n2. Tek cumle Turkce gerekce yaz.\n\nSADECE su JSON, baska hicbir sey, kod blogu yok:\n{\"risk_score\":72,\"level\":\"YUKSEK\",\"reason\":\"...\"}\nlevel: DUSUK / ORTA / YUKSEK\n\nTweet: {{ $json.tweet_text }}",
+        "messages": {},
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [180, -200],
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "Risk Analiz (Tweet)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const llm = $input.all();\nconst src = $('Tweet Oku (siniflandir)').all();\nconst esc = (s)=>String(s ?? '').replace(/'/g,\"''\");\nreturn llm.map((it,i)=>{\n  let raw = it.json.text ?? it.json.output ?? it.json.response ?? '';\n  raw = String(raw).trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();\n  let p; try{ p=JSON.parse(raw); }catch(e){ p={risk_score:0,level:'BELIRSIZ',reason:'parse_error: '+raw.slice(0,200)}; }\n  const s = src[i] ? src[i].json : {};\n  return { json: { tweet_id:s.tweet_id, company_code:esc(s.company_code), risk_score:Number(p.risk_score)||0, level:esc(p.level), reason:esc(p.reason) } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, -200],
+      "id": "00000000-0000-0000-0000-000000000004",
+      "name": "JSON Ayikla (Tweet)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO risk_scores (symbol, tweet_id, risk_score, level, reason, source, created_at)\nVALUES ('{{ $json.company_code }}', '{{ $json.tweet_id }}', {{ $json.risk_score }}, '{{ $json.level }}', '{{ $json.reason }}', 'tweet', now());\nUPDATE financial_tweets SET is_processed = true WHERE tweet_id = '{{ $json.tweet_id }}';"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [620, -200],
+      "id": "00000000-0000-0000-0000-000000000005",
+      "name": "Risk Yaz (Tweet)"
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE financial_tweets t\nSET is_processed = true\nWHERE t.is_processed = false\n  AND NOT EXISTS (\n    SELECT 1 FROM market_stocks m\n    WHERE t.tweet_text ILIKE '%' || m.company_name || '%'\n       OR t.tweet_text ~* ('\\m' || m.symbol || '\\M')\n  );"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-60, 40],
+      "id": "00000000-0000-0000-0000-0000000000ee",
+      "name": "Eslesmeyen Tweetleri Isaretle"
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, symbol, headline, content\nFROM financial_news\nWHERE is_processed = false\nORDER BY published_at ASC\nLIMIT 10;"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-60, 240],
+      "id": "00000000-0000-0000-0000-000000000007",
+      "name": "Haber Oku"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Sen finansal risk analisti bir asistansin. Su firmaya ait bir HABER veriyorum. Firma sembolu belli: {{ $json.symbol }}\n\n1. Bu haber {{ $json.symbol }} firmasi icin ne kadar riskli? 0-100 skorla.\n2. Tek cumle Turkce gerekce yaz.\n\nSADECE su JSON, baska hicbir sey, kod blogu yok:\n{\"risk_score\":72,\"level\":\"YUKSEK\",\"reason\":\"...\"}\nlevel: DUSUK / ORTA / YUKSEK\n\nBaslik: {{ $json.headline }}\nIcerik: {{ $json.content }}",
+        "messages": {},
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [180, 240],
+      "id": "00000000-0000-0000-0000-000000000008",
+      "name": "Risk Analiz (Haber)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const llm = $input.all();\nconst src = $('Haber Oku').all();\nconst esc = (s)=>String(s ?? '').replace(/'/g,\"''\");\nreturn llm.map((it,i)=>{\n  let raw = it.json.text ?? it.json.output ?? it.json.response ?? '';\n  raw = String(raw).trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();\n  let p; try{ p=JSON.parse(raw); }catch(e){ p={risk_score:0,level:'BELIRSIZ',reason:'parse_error: '+raw.slice(0,200)}; }\n  const s = src[i] ? src[i].json : {};\n  return { json: { news_id:s.id, symbol:esc(s.symbol), risk_score:Number(p.risk_score)||0, level:esc(p.level), reason:esc(p.reason) } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 240],
+      "id": "00000000-0000-0000-0000-000000000009",
+      "name": "JSON Ayikla (Haber)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO risk_scores (symbol, news_id, risk_score, level, reason, source, created_at)\nVALUES ('{{ $json.symbol }}', {{ $json.news_id }}, {{ $json.risk_score }}, '{{ $json.level }}', '{{ $json.reason }}', 'news', now());\nUPDATE financial_news SET is_processed = true WHERE id = {{ $json.news_id }};"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [620, 240],
+      "id": "00000000-0000-0000-0000-000000000010",
+      "name": "Risk Yaz (Haber)"
+    },
+
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [180, 460],
+      "id": "00000000-0000-0000-0000-000000000012",
+      "name": "Google Gemini"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manuel Tetik (test)": {
+      "main": [[
+        { "node": "Tweet Oku (siniflandir)", "type": "main", "index": 0 },
+        { "node": "Eslesmeyen Tweetleri Isaretle", "type": "main", "index": 0 },
+        { "node": "Haber Oku", "type": "main", "index": 0 }
+      ]]
+    },
+
+    "Tweet Oku (siniflandir)": { "main": [[{ "node": "Risk Analiz (Tweet)", "type": "main", "index": 0 }]] },
+    "Risk Analiz (Tweet)": { "main": [[{ "node": "JSON Ayikla (Tweet)", "type": "main", "index": 0 }]] },
+    "JSON Ayikla (Tweet)": { "main": [[{ "node": "Risk Yaz (Tweet)", "type": "main", "index": 0 }]] },
+
+    "Haber Oku": { "main": [[{ "node": "Risk Analiz (Haber)", "type": "main", "index": 0 }]] },
+    "Risk Analiz (Haber)": { "main": [[{ "node": "JSON Ayikla (Haber)", "type": "main", "index": 0 }]] },
+    "JSON Ayikla (Haber)": { "main": [[{ "node": "Risk Yaz (Haber)", "type": "main", "index": 0 }]] },
+
+    "Google Gemini": {
+      "ai_languageModel": [[
+        { "node": "Risk Analiz (Tweet)", "type": "ai_languageModel", "index": 0 },
+        { "node": "Risk Analiz (Haber)", "type": "ai_languageModel", "index": 0 }
+      ]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}
