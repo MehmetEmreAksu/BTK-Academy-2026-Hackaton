@@ -1273,8 +1273,12 @@ class _UserScreenState extends State<UserScreen> {
                                           : level == 'ORTA'
                                           ? Colors.orange
                                           : Colors.green;
+                                      final cred = a['credibility_score'];
+                                      final credTxt = cred == null
+                                          ? ''
+                                          : "  •  Güvenilirlik: $cred/100";
                                       return activityItem(
-                                        "${a['symbol']} - ${a['risk_score']}/100 ($level)",
+                                        "${a['symbol']} - Risk ${a['risk_score']}/100 ($level)$credTxt",
                                         (a['reason'] ?? '').toString(),
                                         color,
                                       );
@@ -2199,7 +2203,7 @@ class _UserScreenState extends State<UserScreen> {
     // Sadece o sembollerin riskleri
     final data = await supabase
         .from('risk_scores')
-        .select('symbol, risk_score, level, reason, created_at')
+        .select('symbol, risk_score, credibility_score, level, reason, created_at')
         .inFilter('symbol', symbols)
         .gte('risk_score', 70)
         .order('created_at', ascending: false)
