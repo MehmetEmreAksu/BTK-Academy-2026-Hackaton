@@ -14,7 +14,7 @@ class MarketStock {
 
   factory MarketStock.fromJson(Map<String, dynamic> json) {
     return MarketStock(
-      symbol: json['stock_symbol']?.toString() ?? '',
+      symbol: (json['symbol'] ?? json['stock_symbol'])?.toString() ?? '',
       companyName: json['company_name']?.toString() ?? '',
       sector: json['sector']?.toString() ?? '',
     );

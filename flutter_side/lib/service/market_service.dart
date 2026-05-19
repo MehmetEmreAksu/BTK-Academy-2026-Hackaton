@@ -4,58 +4,67 @@ import '../models/market_stock.dart';
 class MarketService {
   static final supabase = Supabase.instance.client;
 
-  // MARKET STOCKS
+  // Giris yapan kullanicinin users tablosunda satiri olmasini garantiler.
+  // W2 gunluk mail workflow'u users.email uzerinden mail attigi icin sart.
+  static Future<void> ensureUserRow() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final meta = user.userMetadata ?? {};
+    final fullName =
+        '${meta['first_name'] ?? ''} ${meta['last_name'] ?? ''}'.trim();
+
+    await supabase.from('users').upsert({
+      'user_id': user.id,
+      'email': user.email,
+      'full_name': fullName.isEmpty ? (user.email ?? 'User') : fullName,
+    }, onConflict: 'user_id');
+  }
+
+  // Tum market hisseleri + kullanicinin takip ettikleri isaretli
   static Future<List<MarketStock>> getStocks() async {
-    try {
-      final response = await supabase
-          .from('market_stocks')
-          .select();
+    final response = await supabase.from('market_stocks').select();
 
-      // Kullanıcının seçili hisseleri
-      final userStocks = await getUserStocks();
-      final selectedSymbols = userStocks.map((s) => s.symbol).toSet();
+    final userStocks = await getUserStocks();
+    final selectedSymbols = userStocks.map((s) => s.symbol).toSet();
 
-      return (response as List).map((stock) {
-        final marketStock = MarketStock.fromJson(stock);
-
-        marketStock.isSelected =
-            selectedSymbols.contains(marketStock.symbol);
-
-        return marketStock;
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load stocks: $e');
-    }
+    return (response as List).map((stock) {
+      final marketStock = MarketStock.fromJson(stock);
+      marketStock.isSelected = selectedSymbols.contains(marketStock.symbol);
+      return marketStock;
+    }).toList();
   }
 
-  // USER STOCKS
+  // Kullanicinin portfoyu (user_portfolios) + sirket bilgisi market_stocks'tan
   static Future<List<MarketStock>> getUserStocks() async {
-    try {
-      final user = supabase.auth.currentUser;
+    final user = supabase.auth.currentUser;
+    if (user == null) return [];
 
-      if (user == null) {
-        return [];
-      }
+    final portfolio = await supabase
+        .from('user_portfolios')
+        .select('symbol')
+        .eq('user_id', user.id);
 
-      final response = await supabase
-          .from('user_stocks')
-          .select()
-          .eq('user_id', user.id);
+    final symbols = (portfolio as List)
+        .map((e) => e['symbol']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-      return (response as List).map((stock) {
-        return MarketStock(
-          symbol: stock['stock_symbol']?.toString() ?? '',
-          companyName: stock['company_name']?.toString() ?? '',
-          sector: stock['sector']?.toString() ?? '',
-          isSelected: true,
-        );
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load user stocks: $e');
-    }
+    if (symbols.isEmpty) return [];
+
+    final stocks = await supabase
+        .from('market_stocks')
+        .select()
+        .inFilter('symbol', symbols);
+
+    return (stocks as List).map((stock) {
+      final ms = MarketStock.fromJson(stock);
+      ms.isSelected = true;
+      return ms;
+    }).toList();
   }
 
-  // SAVE USER STOCK
+  // Takibe ekle / cikar -> user_portfolios
   static Future<void> saveUserStock({
     required String userId,
     required String symbol,
@@ -63,37 +72,25 @@ class MarketService {
     required String sector,
     required bool isSelected,
   }) async {
-    try {
-      // EKLE
-      if (isSelected) {
+    if (isSelected) {
+      final existing = await supabase
+          .from('user_portfolios')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('symbol', symbol);
 
-        // Aynı hisse var mı kontrol et
-        final existing = await supabase
-            .from('user_stocks')
-            .select()
-            .eq('user_id', userId)
-            .eq('stock_symbol', symbol);
-
-        if ((existing as List).isEmpty) {
-          await supabase.from('user_stocks').insert({
-            'user_id': userId,
-            'stock_symbol': symbol,
-            'company_name': companyName,
-            'sector': sector,
-          });
-        }
+      if ((existing as List).isEmpty) {
+        await supabase.from('user_portfolios').insert({
+          'user_id': userId,
+          'symbol': symbol,
+        });
       }
-
-      // SİL
-      else {
-        await supabase
-            .from('user_stocks')
-            .delete()
-            .eq('user_id', userId)
-            .eq('stock_symbol', symbol);
-      }
-    } catch (e) {
-      throw Exception('Failed to save stock: $e');
+    } else {
+      await supabase
+          .from('user_portfolios')
+          .delete()
+          .eq('user_id', userId)
+          .eq('symbol', symbol);
     }
   }
 }

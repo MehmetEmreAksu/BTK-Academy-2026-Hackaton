@@ -28,6 +28,8 @@ class _UserScreenState extends State<UserScreen> {
 
   final TextEditingController _chatController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   final List<Map<String, dynamic>> menuItems = [
     {"title": "Dashboard", "icon": Icons.dashboard_rounded},
@@ -47,8 +49,17 @@ class _UserScreenState extends State<UserScreen> {
   @override
   void initState() {
     super.initState();
-    loadUserStocks();
-    loadStocks();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    try {
+      await MarketService.ensureUserRow();
+    } catch (e) {
+      print("ensureUserRow error: $e");
+    }
+    await loadUserStocks();
+    await loadStocks();
   }
 
   Future<void> loadStocks() async {
@@ -753,16 +764,60 @@ class _UserScreenState extends State<UserScreen> {
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 20,
+                            InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () async {
+                                final currentUser = Supabase
+                                    .instance
+                                    .client
+                                    .auth
+                                    .currentUser;
+                                if (currentUser == null) return;
+                                try {
+                                  await MarketService.saveUserStock(
+                                    userId: currentUser.id,
+                                    symbol: stock.symbol,
+                                    companyName: stock.companyName,
+                                    sector: stock.sector,
+                                    isSelected: false,
+                                  );
+                                  await loadUserStocks();
+                                  await loadStocks();
+                                } catch (e) {
+                                  print("Error removing stock: $e");
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.remove_circle_outline,
+                                      color: Colors.redAccent,
+                                      size: 18,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      "Unfollow",
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -779,21 +834,31 @@ class _UserScreenState extends State<UserScreen> {
   }
 
   Widget _marketPage() {
-    final financeStocks = marketStocks
+    final filtered = _searchQuery.isEmpty
+        ? marketStocks
+        : marketStocks
+              .where(
+                (s) =>
+                    s.symbol.toLowerCase().contains(_searchQuery) ||
+                    s.companyName.toLowerCase().contains(_searchQuery),
+              )
+              .toList();
+
+    final financeStocks = filtered
         .where((s) => s.sector == "Finance")
         .toList();
 
-    final techStocks = marketStocks
+    final techStocks = filtered
         .where((s) => s.sector.contains("Technology"))
         .toList();
 
-    final energyStocks = marketStocks
+    final energyStocks = filtered
         .where(
           (s) => s.sector.contains("Energy") || s.sector.contains("Utilities"),
         )
         .toList();
 
-    final otherStocks = marketStocks
+    final otherStocks = filtered
         .where(
           (s) =>
               s.sector != "Finance" &&
@@ -1078,10 +1143,9 @@ class _UserScreenState extends State<UserScreen> {
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-                DefaultTabController(
-                  length: 2,
+                  const SizedBox(height: 24),
+                  DefaultTabController(
+                    length: 2,
                   child: Column(
                     children: [
                       Container(
@@ -1195,6 +1259,7 @@ class _UserScreenState extends State<UserScreen> {
                 ),
               ],
             ),
+          ),
           ],
         ),
       ),
@@ -1380,9 +1445,15 @@ class _UserScreenState extends State<UserScreen> {
         children: [
           Expanded(
             child: TextField(
+              controller: _searchController,
               style: const TextStyle(color: Colors.white),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.trim().toLowerCase();
+                });
+              },
               decoration: InputDecoration(
-                hintText: "Search market, assets, alerts...",
+                hintText: "Search stocks by symbol or company...",
                 hintStyle: const TextStyle(color: Colors.white54),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.05),
@@ -1390,6 +1461,20 @@ class _UserScreenState extends State<UserScreen> {
                   Icons.search_rounded,
                   color: Colors.white54,
                 ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white54,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -1993,9 +2078,27 @@ class _UserScreenState extends State<UserScreen> {
 
   Future<List<Map<String, dynamic>>> _fetchAlerts() async {
     final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return [];
+
+    // Once kullanicinin takip ettigi semboller
+    final portfolio = await supabase
+        .from('user_portfolios')
+        .select('symbol')
+        .eq('user_id', user.id);
+
+    final symbols = (portfolio as List)
+        .map((e) => e['symbol']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    if (symbols.isEmpty) return [];
+
+    // Sadece o sembollerin riskleri
     final data = await supabase
         .from('risk_scores')
         .select('symbol, risk_score, level, reason, created_at')
+        .inFilter('symbol', symbols)
         .gte('risk_score', 70)
         .order('created_at', ascending: false)
         .limit(20);
