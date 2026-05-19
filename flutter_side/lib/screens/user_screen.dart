@@ -89,9 +89,13 @@ class _UserScreenState extends State<UserScreen> {
 
     try {
       final stocks = await MarketService.getUserStocks();
+      final prices = await _fetchPrices(
+        stocks.map((s) => s.symbol).toList(),
+      );
 
       setState(() {
         userStocks = stocks;
+        _priceMap = prices;
         isLoadingUserStocks = false;
       });
     } catch (e) {
@@ -101,6 +105,32 @@ class _UserScreenState extends State<UserScreen> {
         isLoadingUserStocks = false;
       });
     }
+  }
+
+  // symbol -> {price, prevClose, changePct}
+  Map<String, Map<String, dynamic>> _priceMap = {};
+
+  Future<Map<String, Map<String, dynamic>>> _fetchPrices(
+    List<String> symbols,
+  ) async {
+    if (symbols.isEmpty) return {};
+    final supabase = Supabase.instance.client;
+    final rows = await supabase
+        .from('stocks')
+        .select('symbol, current_price, previous_close')
+        .inFilter('symbol', symbols);
+    final map = <String, Map<String, dynamic>>{};
+    for (final r in (rows as List)) {
+      final cur = (r['current_price'] as num?)?.toDouble() ?? 0;
+      final prev = (r['previous_close'] as num?)?.toDouble() ?? 0;
+      final pct = prev > 0 ? ((cur - prev) / prev * 100) : 0.0;
+      map[r['symbol'].toString()] = {
+        'price': cur,
+        'prev': prev,
+        'pct': pct,
+      };
+    }
+    return map;
   }
 
   Future<void> _sendMessage() async {
@@ -120,9 +150,7 @@ class _UserScreenState extends State<UserScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          "http://localhost:5678/webhook/c1be8c8c-bfb8-427c-bb21-0a4613b9a9ae/chat",
-        ),
+        Uri.parse("https://mehmetemreaksu.app.n8n.cloud/webhook/ai-chat"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "message": userMessage,
@@ -357,150 +385,143 @@ class _UserScreenState extends State<UserScreen> {
     );
   }
 
-  Widget _buildNewsSection() {
-    final newsItems = [
-      {
-        "title": "Fed Signals Possible Rate Pause",
-        "source": "Bloomberg",
-        "time": "12 min ago",
-        "description":
-            "Markets reacted positively after the Federal Reserve hinted at a possible pause in future interest rate hikes.",
-        "color": Colors.blue,
-        "icon": Icons.trending_up_rounded,
-      },
-      {
-        "title": "Tesla Surges After Delivery Report",
-        "source": "Reuters",
-        "time": "25 min ago",
-        "description":
-            "Tesla shares gained momentum following stronger-than-expected delivery numbers this quarter.",
-        "color": const Color(0xFF8B5CF6),
-        "icon": Icons.electric_car_rounded,
-      },
-      {
-        "title": "Oil Prices Continue Rising",
-        "source": "CNBC",
-        "time": "41 min ago",
-        "description":
-            "Energy sector stocks climbed as crude oil prices extended gains amid supply concerns.",
-        "color": Colors.orange,
-        "icon": Icons.local_fire_department_rounded,
-      },
-      {
-        "title": "AI Stocks Lead Tech Rally",
-        "source": "MarketWatch",
-        "time": "1 hour ago",
-        "description":
-            "Artificial intelligence companies continue outperforming broader technology indexes.",
-        "color": Colors.green,
-        "icon": Icons.memory_rounded,
-      },
-    ];
+  Future<List<Map<String, dynamic>>> _fetchNews() async {
+    final supabase = Supabase.instance.client;
+    final rows = await supabase
+        .from('financial_news')
+        .select('symbol, headline, content, published_at')
+        .order('published_at', ascending: false)
+        .limit(8);
+    return List<Map<String, dynamic>>.from(rows);
+  }
 
+  Widget _buildNewsSection() {
     return glassContainer(
       padding: const EdgeInsets.all(28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Text(
-                "Latest News",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+          const Text(
+            "Latest News",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 24),
-
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: newsItems.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 18),
-            itemBuilder: (context, index) {
-              final item = newsItems[index];
-
-              return Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.03),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: (item["color"] as Color).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Icon(
-                        item["icon"] as IconData,
-                        color: item["color"] as Color,
-                        size: 24,
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchNews(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                return Text(
+                  "Haber yuklenemedi: ${snapshot.error}",
+                  style: const TextStyle(color: Colors.redAccent),
+                );
+              }
+              final news = snapshot.data ?? [];
+              if (news.isEmpty) {
+                return const Text(
+                  "Henuz haber yok.",
+                  style: TextStyle(color: Colors.white60),
+                );
+              }
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: news.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 18),
+                itemBuilder: (context, index) {
+                  final n = news[index];
+                  final symbol = (n['symbol'] ?? '').toString();
+                  final headline = (n['headline'] ?? '').toString();
+                  final content = (n['content'] ?? '').toString();
+                  final time = (n['published_at'] ?? '').toString();
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.03),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.05),
                       ),
                     ),
-
-                    const SizedBox(width: 18),
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            alignment: WrapAlignment.spaceBetween,
-                            runSpacing: 8,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(
+                            Icons.newspaper_rounded,
+                            color: Colors.blue,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Wrap(
+                                alignment: WrapAlignment.spaceBetween,
+                                runSpacing: 8,
+                                children: [
+                                  Text(
+                                    headline.isEmpty ? symbol : headline,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    time.length >= 16
+                                        ? time.substring(0, 16)
+                                        : time,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.4),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
                               Text(
-                                item["title"] as String,
+                                symbol.isEmpty ? "Genel" : symbol,
                                 style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 17,
+                                  color: Colors.blue,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
+                              const SizedBox(height: 12),
                               Text(
-                                item["time"] as String,
+                                content,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.4),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.65),
+                                  fontSize: 14,
+                                  height: 1.6,
                                 ),
                               ),
                             ],
                           ),
-
-                          const SizedBox(height: 8),
-
-                          Text(
-                            item["source"] as String,
-                            style: TextStyle(
-                              color: item["color"] as Color,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          Text(
-                            item["description"] as String,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.65),
-                              fontSize: 14,
-                              height: 1.6,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               );
             },
           ),
@@ -816,6 +837,55 @@ class _UserScreenState extends State<UserScreen> {
                                   ),
                                 ],
                               ),
+                            ),
+                            Builder(
+                              builder: (_) {
+                                final p = _priceMap[stock.symbol];
+                                if (p == null) {
+                                  return const Padding(
+                                    padding: EdgeInsets.only(right: 12),
+                                    child: Text(
+                                      "fiyat\nyok",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white38,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final pct = p['pct'] as double;
+                                final c = pct >= 0
+                                    ? Colors.green
+                                    : Colors.red;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.end,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        "${(p['price'] as double).toStringAsFixed(2)} ₺",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(2)}%",
+                                        style: TextStyle(
+                                          color: c,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
                             InkWell(
                               borderRadius: BorderRadius.circular(12),
@@ -1807,9 +1877,32 @@ class _UserScreenState extends State<UserScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          marketItem("S&P 500", "4,567.89", "+0.8%", Colors.green, "SPX"),
-          marketItem("NASDAQ", "14,234.56", "+1.2%", Colors.green, "IXIC"),
-          marketItem("BTC/USD", "67,432.10", "+2.4%", Colors.green, "BTC"),
+          if (userStocks.isEmpty)
+            const Text(
+              "Takip ettigin hisse yok. Market'ten ekle.",
+              style: TextStyle(color: Colors.white60),
+            )
+          else
+            ...userStocks.take(6).map((s) {
+              final p = _priceMap[s.symbol];
+              final price = p == null
+                  ? "-"
+                  : (p['price'] as double).toStringAsFixed(2);
+              final pct = p == null ? 0.0 : (p['pct'] as double);
+              final pctTxt = p == null
+                  ? "veri yok"
+                  : "${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(2)}%";
+              final c = p == null
+                  ? Colors.white38
+                  : (pct >= 0 ? Colors.green : Colors.red);
+              return marketItem(
+                s.companyName,
+                price,
+                pctTxt,
+                c,
+                s.symbol,
+              );
+            }),
         ],
       ),
     );
