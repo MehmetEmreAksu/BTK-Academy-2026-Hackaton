@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:ui';
 import 'package:btk_byte_benders/models/market_stock.dart';
 import 'package:btk_byte_benders/service/market_service.dart';
 import 'package:btk_byte_benders/screens/login_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserScreen extends StatefulWidget {
@@ -101,12 +103,14 @@ class _UserScreenState extends State<UserScreen> {
     }
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_chatController.text.trim().isEmpty) return;
+
+    final userMessage = _chatController.text.trim();
 
     setState(() {
       _chatMessages.add({
-        'text': _chatController.text,
+        'text': userMessage,
         'isUser': true,
         'time': TimeOfDay.now().format(context),
       });
@@ -114,25 +118,53 @@ class _UserScreenState extends State<UserScreen> {
 
     _chatController.clear();
 
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_chatScrollController.hasClients) {
-        _chatScrollController.animateTo(
-          _chatScrollController.position.maxScrollExtent + 100,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    try {
+      final response = await http.post(
+        Uri.parse("http://localhost:5678/webhook-test/ai-chat"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "message": userMessage,
+          "sessionId": user?.id ?? "anonymous",
+        }),
+      );
 
-    Future.delayed(const Duration(seconds: 1), () {
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        setState(() {
+          _chatMessages.add({
+            'text': data["output"] ?? "No response",
+            'isUser': false,
+            'time': TimeOfDay.now().format(context),
+          });
+        });
+      } else {
+        setState(() {
+          _chatMessages.add({
+            'text': "AI service error: ${response.statusCode}",
+            'isUser': false,
+            'time': TimeOfDay.now().format(context),
+          });
+        });
+      }
+    } catch (e) {
       setState(() {
         _chatMessages.add({
-          'text':
-              'I\'m analyzing your request and checking live market signals.',
+          'text': "Connection error: $e",
           'isUser': false,
           'time': TimeOfDay.now().format(context),
         });
       });
+    }
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_chatScrollController.hasClients) {
+        _chatScrollController.animateTo(
+          _chatScrollController.position.maxScrollExtent + 200,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -786,11 +818,8 @@ class _UserScreenState extends State<UserScreen> {
                             InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: () async {
-                                final currentUser = Supabase
-                                    .instance
-                                    .client
-                                    .auth
-                                    .currentUser;
+                                final currentUser =
+                                    Supabase.instance.client.auth.currentUser;
                                 if (currentUser == null) return;
                                 try {
                                   await MarketService.saveUserStock(
@@ -863,9 +892,7 @@ class _UserScreenState extends State<UserScreen> {
               )
               .toList();
 
-    final financeStocks = filtered
-        .where((s) => s.sector == "Finance")
-        .toList();
+    final financeStocks = filtered.where((s) => s.sector == "Finance").toList();
 
     final techStocks = filtered
         .where((s) => s.sector.contains("Technology"))
@@ -1165,120 +1192,137 @@ class _UserScreenState extends State<UserScreen> {
                   const SizedBox(height: 24),
                   DefaultTabController(
                     length: 2,
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.white.withOpacity(0.06)),
-                        ),
-                        child: TabBar(
-                          dividerColor: Colors.transparent,
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          indicator: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.06),
                             ),
-                            borderRadius: BorderRadius.circular(14),
                           ),
-                          labelColor: Colors.white,
-                          unselectedLabelColor: Colors.white54,
-                          labelStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
+                          child: TabBar(
+                            dividerColor: Colors.transparent,
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            indicator: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            labelColor: Colors.white,
+                            unselectedLabelColor: Colors.white54,
+                            labelStyle: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                            tabs: const [
+                              Tab(
+                                icon: Icon(Icons.warning_amber_rounded),
+                                text: "Risk Alerts",
+                              ),
+                              Tab(
+                                icon: Icon(Icons.language_rounded),
+                                text: "Tweets & News",
+                              ),
+                            ],
                           ),
-                          tabs: const [
-                            Tab(icon: Icon(Icons.warning_amber_rounded), text: "Risk Alerts"),
-                            Tab(icon: Icon(Icons.language_rounded), text: "Tweets & News"),
-                          ],
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        height: 500,
-                        child: TabBarView(
-                          children: [
-                            // TAB 1: Gerçek Supabase verisi
-                            FutureBuilder<List<Map<String, dynamic>>>(
-                              future: _fetchAlerts(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const Center(child: CircularProgressIndicator());
-                                }
-                                if (snapshot.hasError) {
-                                  return Center(
-                                    child: Text(
-                                      "Hata: ${snapshot.error}",
-                                      style: const TextStyle(color: Colors.redAccent),
-                                    ),
-                                  );
-                                }
-                                final alerts = snapshot.data ?? [];
-                                if (alerts.isEmpty) {
-                                  return const Center(
-                                    child: Text(
-                                      "Su an riskli bir uyari yok.",
-                                      style: TextStyle(color: Colors.white60),
-                                    ),
-                                  );
-                                }
-                                return ListView(
-                                  children: alerts.map((a) {
-                                    final level = (a['level'] ?? '').toString();
-                                    final color = level == 'YUKSEK'
-                                        ? Colors.red
-                                        : level == 'ORTA'
-                                        ? Colors.orange
-                                        : Colors.green;
-                                    return activityItem(
-                                      "${a['symbol']} - ${a['risk_score']}/100 ($level)",
-                                      (a['reason'] ?? '').toString(),
-                                      color,
+                        const SizedBox(height: 28),
+                        SizedBox(
+                          height: 500,
+                          child: TabBarView(
+                            children: [
+                              // TAB 1: Gerçek Supabase verisi
+                              FutureBuilder<List<Map<String, dynamic>>>(
+                                future: _fetchAlerts(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
                                     );
-                                  }).toList(),
-                                );
-                              },
-                            ),
-                            // TAB 2: Tweets & News
-                            ListView(
-                              children: [
-                                _alertCard(
-                                  title: "Tesla Mention Spike",
-                                  source: "Twitter/X",
-                                  description: "Social sentiment increased by 34% after earnings rumors.",
-                                  time: "1 min ago",
-                                  color: const Color(0xFF8B5CF6),
-                                  icon: Icons.trending_up_rounded,
-                                ),
-                                _alertCard(
-                                  title: "Breaking Market News",
-                                  source: "Bloomberg",
-                                  description: "Oil prices jump after unexpected supply chain disruption.",
-                                  time: "7 min ago",
-                                  color: Colors.orange,
-                                  icon: Icons.newspaper_rounded,
-                                ),
-                                _alertCard(
-                                  title: "Banking Sector Trend",
-                                  source: "Reuters",
-                                  description: "Large institutions show increased short-term accumulation.",
-                                  time: "15 min ago",
-                                  color: Colors.cyan,
-                                  icon: Icons.insights_rounded,
-                                ),
-                              ],
-                            ),
-                          ],
+                                  }
+                                  if (snapshot.hasError) {
+                                    return Center(
+                                      child: Text(
+                                        "Hata: ${snapshot.error}",
+                                        style: const TextStyle(
+                                          color: Colors.redAccent,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final alerts = snapshot.data ?? [];
+                                  if (alerts.isEmpty) {
+                                    return const Center(
+                                      child: Text(
+                                        "Su an riskli bir uyari yok.",
+                                        style: TextStyle(color: Colors.white60),
+                                      ),
+                                    );
+                                  }
+                                  return ListView(
+                                    children: alerts.map((a) {
+                                      final level = (a['level'] ?? '')
+                                          .toString();
+                                      final color = level == 'YUKSEK'
+                                          ? Colors.red
+                                          : level == 'ORTA'
+                                          ? Colors.orange
+                                          : Colors.green;
+                                      return activityItem(
+                                        "${a['symbol']} - ${a['risk_score']}/100 ($level)",
+                                        (a['reason'] ?? '').toString(),
+                                        color,
+                                      );
+                                    }).toList(),
+                                  );
+                                },
+                              ),
+                              // TAB 2: Tweets & News
+                              ListView(
+                                children: [
+                                  _alertCard(
+                                    title: "Tesla Mention Spike",
+                                    source: "Twitter/X",
+                                    description:
+                                        "Social sentiment increased by 34% after earnings rumors.",
+                                    time: "1 min ago",
+                                    color: const Color(0xFF8B5CF6),
+                                    icon: Icons.trending_up_rounded,
+                                  ),
+                                  _alertCard(
+                                    title: "Breaking Market News",
+                                    source: "Bloomberg",
+                                    description:
+                                        "Oil prices jump after unexpected supply chain disruption.",
+                                    time: "7 min ago",
+                                    color: Colors.orange,
+                                    icon: Icons.newspaper_rounded,
+                                  ),
+                                  _alertCard(
+                                    title: "Banking Sector Trend",
+                                    source: "Reuters",
+                                    description:
+                                        "Large institutions show increased short-term accumulation.",
+                                    time: "15 min ago",
+                                    color: Colors.cyan,
+                                    icon: Icons.insights_rounded,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           ],
         ),
       ),
