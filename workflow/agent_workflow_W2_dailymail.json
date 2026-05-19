@@ -18,7 +18,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  u.id   AS user_id,\n  u.name AS name,\n  u.email AS email,\n  string_agg(\n    r.symbol || ' - ' || r.level || ' (' || r.risk_score || '/100): ' || r.reason,\n    E'\\n'\n    ORDER BY r.risk_score DESC\n  ) AS rapor,\n  count(*) AS adet\nFROM users u\nJOIN user_portfolios p ON p.user_id = u.id\nJOIN risk_scores r ON r.symbol = p.symbol\nWHERE r.created_at >= now() - interval '24 hours'\n  AND u.email IS NOT NULL\n  AND u.email <> ''\nGROUP BY u.id, u.name, u.email;"
+        "query": "SELECT\n  u.user_id AS user_id,\n  COALESCE(NULLIF(u.full_name, ''), u.email) AS name,\n  u.email AS email,\n  string_agg(\n    r.symbol || ' - ' || r.level || ' (Risk ' || r.risk_score || '/100, Guvenilirlik ' || COALESCE(r.credibility_score, 0) || '/100): ' || r.reason,\n    E'\\n'\n    ORDER BY r.risk_score DESC\n  ) AS rapor,\n  count(*) AS adet\nFROM users u\nJOIN user_portfolios p ON p.user_id = u.user_id\nJOIN risk_scores r ON r.symbol = p.symbol\nWHERE r.created_at >= now() - interval '24 hours'\n  AND p.symbol <> 'GENEL'\n  AND u.email IS NOT NULL\n  AND u.email <> ''\nGROUP BY u.user_id, name, u.email;"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
