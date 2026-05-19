@@ -1282,37 +1282,55 @@ class _UserScreenState extends State<UserScreen> {
                                   );
                                 },
                               ),
-                              // TAB 2: Tweets & News
-                              ListView(
-                                children: [
-                                  _alertCard(
-                                    title: "Tesla Mention Spike",
-                                    source: "Twitter/X",
-                                    description:
-                                        "Social sentiment increased by 34% after earnings rumors.",
-                                    time: "1 min ago",
-                                    color: const Color(0xFF8B5CF6),
-                                    icon: Icons.trending_up_rounded,
-                                  ),
-                                  _alertCard(
-                                    title: "Breaking Market News",
-                                    source: "Bloomberg",
-                                    description:
-                                        "Oil prices jump after unexpected supply chain disruption.",
-                                    time: "7 min ago",
-                                    color: Colors.orange,
-                                    icon: Icons.newspaper_rounded,
-                                  ),
-                                  _alertCard(
-                                    title: "Banking Sector Trend",
-                                    source: "Reuters",
-                                    description:
-                                        "Large institutions show increased short-term accumulation.",
-                                    time: "15 min ago",
-                                    color: Colors.cyan,
-                                    icon: Icons.insights_rounded,
-                                  ),
-                                ],
+                              // TAB 2: Gercek Tweet & Haber
+                              FutureBuilder<List<Map<String, dynamic>>>(
+                                future: _fetchTweetsNews(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+                                  if (snapshot.hasError) {
+                                    return Center(
+                                      child: Text(
+                                        "Hata: ${snapshot.error}",
+                                        style: const TextStyle(
+                                          color: Colors.redAccent,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final items = snapshot.data ?? [];
+                                  if (items.isEmpty) {
+                                    return const Center(
+                                      child: Text(
+                                        "Henuz tweet veya haber yok.",
+                                        style: TextStyle(color: Colors.white60),
+                                      ),
+                                    );
+                                  }
+                                  return ListView(
+                                    children: items.map((it) {
+                                      final isTweet = it['type'] == 'tweet';
+                                      return _alertCard(
+                                        title: it['title'].toString(),
+                                        source: isTweet
+                                            ? "Twitter/X"
+                                            : "Haber",
+                                        description: it['desc'].toString(),
+                                        time: it['time'].toString(),
+                                        color: isTweet
+                                            ? const Color(0xFF8B5CF6)
+                                            : Colors.orange,
+                                        icon: isTweet
+                                            ? Icons.trending_up_rounded
+                                            : Icons.newspaper_rounded,
+                                      );
+                                    }).toList(),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -1564,9 +1582,10 @@ class _UserScreenState extends State<UserScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          iconButton(Icons.notifications_none_rounded),
-          const SizedBox(width: 10),
-          iconButton(Icons.settings_outlined),
+          iconButton(
+            Icons.notifications_none_rounded,
+            onTap: () => setState(() => selectedIndex = 3),
+          ),
         ],
       ),
     );
@@ -1672,10 +1691,12 @@ class _UserScreenState extends State<UserScreen> {
                         gradientButton(
                           "View Opportunities",
                           Icons.trending_up_rounded,
+                          onTap: () => setState(() => selectedIndex = 2),
                         ),
                         outlineButton(
                           "Portfolio Details",
                           Icons.pie_chart_rounded,
+                          onTap: () => setState(() => selectedIndex = 1),
                         ),
                       ],
                     ),
@@ -2186,6 +2207,42 @@ class _UserScreenState extends State<UserScreen> {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  Future<List<Map<String, dynamic>>> _fetchTweetsNews() async {
+    final supabase = Supabase.instance.client;
+
+    final news = await supabase
+        .from('financial_news')
+        .select('symbol, headline, content, published_at')
+        .order('published_at', ascending: false)
+        .limit(15);
+
+    final tweets = await supabase
+        .from('financial_tweets')
+        .select('tweet_id, tweet_text, published_at')
+        .order('published_at', ascending: false)
+        .limit(15);
+
+    final items = <Map<String, dynamic>>[];
+    for (final n in (news as List)) {
+      items.add({
+        'type': 'news',
+        'title': (n['headline'] ?? n['symbol'] ?? 'Haber').toString(),
+        'desc': (n['content'] ?? '').toString(),
+        'time': (n['published_at'] ?? '').toString(),
+      });
+    }
+    for (final t in (tweets as List)) {
+      items.add({
+        'type': 'tweet',
+        'title': 'Tweet',
+        'desc': (t['tweet_text'] ?? '').toString(),
+        'time': (t['published_at'] ?? '').toString(),
+      });
+    }
+    items.sort((a, b) => b['time'].toString().compareTo(a['time'].toString()));
+    return items;
+  }
+
   Widget activityItem(String title, String desc, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -2273,7 +2330,7 @@ class _UserScreenState extends State<UserScreen> {
     );
   }
 
-  Widget gradientButton(String title, IconData icon) {
+  Widget gradientButton(String title, IconData icon, {VoidCallback? onTap}) {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -2282,7 +2339,7 @@ class _UserScreenState extends State<UserScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: ElevatedButton.icon(
-        onPressed: () {},
+        onPressed: onTap ?? () {},
         icon: Icon(icon, color: Colors.white, size: 20),
         label: Text(
           title,
@@ -2306,9 +2363,9 @@ class _UserScreenState extends State<UserScreen> {
     );
   }
 
-  Widget outlineButton(String title, IconData icon) {
+  Widget outlineButton(String title, IconData icon, {VoidCallback? onTap}) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onTap ?? () {},
       icon: Icon(icon, color: Colors.white, size: 20),
       label: Text(
         title,
@@ -2327,14 +2384,14 @@ class _UserScreenState extends State<UserScreen> {
     );
   }
 
-  Widget iconButton(IconData icon) {
+  Widget iconButton(IconData icon, {VoidCallback? onTap}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(14),
       ),
       child: IconButton(
-        onPressed: () {},
+        onPressed: onTap ?? () {},
         icon: Icon(icon, color: Colors.white),
       ),
     );
