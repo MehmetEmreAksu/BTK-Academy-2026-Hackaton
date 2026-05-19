@@ -120,7 +120,9 @@ class _UserScreenState extends State<UserScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://localhost:5678/webhook-test/ai-chat"),
+        Uri.parse(
+          "http://localhost:5678/webhook/c1be8c8c-bfb8-427c-bb21-0a4613b9a9ae/chat",
+        ),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "message": userMessage,
@@ -1320,9 +1322,7 @@ class _UserScreenState extends State<UserScreen> {
                                       final isTweet = it['type'] == 'tweet';
                                       return _alertCard(
                                         title: it['title'].toString(),
-                                        source: isTweet
-                                            ? "Twitter/X"
-                                            : "Haber",
+                                        source: isTweet ? "Twitter/X" : "Haber",
                                         description: it['desc'].toString(),
                                         time: it['time'].toString(),
                                         color: isTweet
@@ -1526,9 +1526,7 @@ class _UserScreenState extends State<UserScreen> {
                     await Supabase.instance.client.auth.signOut();
                     if (!mounted) return;
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const LoginScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                       (route) => false,
                     );
                   },
@@ -2203,7 +2201,9 @@ class _UserScreenState extends State<UserScreen> {
     // Sadece o sembollerin riskleri
     final data = await supabase
         .from('risk_scores')
-        .select('symbol, risk_score, credibility_score, level, reason, created_at')
+        .select(
+          'symbol, risk_score, credibility_score, level, reason, created_at',
+        )
         .inFilter('symbol', symbols)
         .gte('risk_score', 70)
         .order('created_at', ascending: false)
