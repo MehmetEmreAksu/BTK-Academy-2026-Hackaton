@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:btk_byte_benders/models/market_stock.dart';
 import 'package:btk_byte_benders/service/market_service.dart';
+import 'package:btk_byte_benders/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -630,6 +631,16 @@ class _UserScreenState extends State<UserScreen> {
   }
 
   Widget _portfolioPage() {
+    final filteredUserStocks = _searchQuery.isEmpty
+        ? userStocks
+        : userStocks
+              .where(
+                (s) =>
+                    s.symbol.toLowerCase().contains(_searchQuery) ||
+                    s.companyName.toLowerCase().contains(_searchQuery),
+              )
+              .toList();
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -650,7 +661,9 @@ class _UserScreenState extends State<UserScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "You have ${userStocks.length} selected stocks",
+                  _searchQuery.isEmpty
+                      ? "You have ${userStocks.length} selected stocks"
+                      : "${filteredUserStocks.length} of ${userStocks.length} stocks match \"$_searchQuery\"",
                   style: const TextStyle(color: Colors.white60, fontSize: 15),
                 ),
                 const SizedBox(height: 28),
@@ -666,20 +679,24 @@ class _UserScreenState extends State<UserScreen> {
                     ),
                   )
                 // Hisse yoksa
-                else if (userStocks.isEmpty)
+                else if (filteredUserStocks.isEmpty)
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(40),
                       child: Column(
                         children: [
                           Icon(
-                            Icons.inbox_outlined,
+                            _searchQuery.isEmpty
+                                ? Icons.inbox_outlined
+                                : Icons.search_off_rounded,
                             size: 64,
                             color: Colors.white.withOpacity(0.3),
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            "No stocks selected yet",
+                            _searchQuery.isEmpty
+                                ? "No stocks selected yet"
+                                : "No match for \"$_searchQuery\"",
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.5),
                               fontSize: 16,
@@ -687,7 +704,9 @@ class _UserScreenState extends State<UserScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "Go to Market tab to add stocks",
+                            _searchQuery.isEmpty
+                                ? "Go to Market tab to add stocks"
+                                : "Try a different symbol or company",
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.3),
                               fontSize: 14,
@@ -700,7 +719,7 @@ class _UserScreenState extends State<UserScreen> {
                 // Hisseler varsa
                 else
                   Column(
-                    children: userStocks.map((stock) {
+                    children: filteredUserStocks.map((stock) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 14),
                         padding: const EdgeInsets.all(20),
@@ -1429,6 +1448,24 @@ class _UserScreenState extends State<UserScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                ),
+                IconButton(
+                  tooltip: "Log Out",
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    color: Colors.redAccent,
+                    size: 20,
+                  ),
+                  onPressed: () async {
+                    await Supabase.instance.client.auth.signOut();
+                    if (!mounted) return;
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const LoginScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  },
                 ),
               ],
             ),

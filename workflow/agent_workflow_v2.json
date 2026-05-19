@@ -13,7 +13,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.tweet_id, t.tweet_text, m.symbol AS company_code\nFROM financial_tweets t\nJOIN market_stocks m\n  ON t.tweet_text ILIKE '%' || m.company_name || '%'\n  OR t.tweet_text ~* ('\\m' || m.symbol || '\\M')\nWHERE t.is_processed = false\nLIMIT 10;"
+        "query": "SELECT t.tweet_id, t.tweet_text, m.symbol AS company_code,\n  COALESCE((\n    SELECT string_agg(h, E'\\n') FROM (\n      SELECT '- ' || k.headline AS h\n      FROM kap_disclosures k\n      WHERE k.symbol = m.symbol\n      ORDER BY k.published_at DESC NULLS LAST\n      LIMIT 5\n    ) sub\n  ), 'Resmi KAP aciklamasi yok') AS kap_context\nFROM financial_tweets t\nJOIN market_stocks m\n  ON t.tweet_text ILIKE '%' || m.company_name || '%'\n  OR t.tweet_text ~* ('\\m' || m.symbol || '\\M')\nWHERE t.is_processed = false\nLIMIT 10;"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -24,7 +24,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Sen finansal risk analisti bir asistansin. Su firmaya ait bir TWEET veriyorum. Firma sembolu belli: {{ $json.company_code }}\n\n1. Bu tweet {{ $json.company_code }} firmasi icin ne kadar riskli? 0-100 skorla.\n2. Tek cumle Turkce gerekce yaz.\n\nSADECE su JSON, baska hicbir sey, kod blogu yok:\n{\"risk_score\":72,\"level\":\"YUKSEK\",\"reason\":\"...\"}\nlevel: DUSUK / ORTA / YUKSEK\n\nTweet: {{ $json.tweet_text }}",
+        "text": "=Sen finansal risk analisti bir asistansin. Firma: {{ $json.company_code }}\n\nBu firmanin SON RESMI KAP aciklamalari:\n{{ $json.kap_context }}\n\nAsagidaki TWEET'i degerlendir:\n1. risk_score: bu tweet firma icin ne kadar riskli? 0-100.\n2. credibility_score: tweet'teki iddia yukaridaki RESMI KAP aciklamalariyla ne kadar tutarli/dogrulanabilir? 0-100. (100=resmi kaynakla birebir ortusuyor, dusuk=resmi kaynakta yok veya celisiyor, manipulasyon/soylenti olabilir)\n3. Tek cumle Turkce gerekce.\n\nSADECE su JSON, baska hicbir sey, kod blogu yok:\n{\"risk_score\":72,\"credibility_score\":40,\"level\":\"YUKSEK\",\"reason\":\"...\"}\nlevel: DUSUK / ORTA / YUKSEK\n\nTweet: {{ $json.tweet_text }}",
         "messages": {},
         "batching": {}
       },
@@ -38,7 +38,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const llm = $input.all();\nconst src = $('Tweet Oku (siniflandir)').all();\nconst esc = (s)=>String(s ?? '').replace(/'/g,\"''\");\nreturn llm.map((it,i)=>{\n  let raw = it.json.text ?? it.json.output ?? it.json.response ?? '';\n  raw = String(raw).trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();\n  let p; try{ p=JSON.parse(raw); }catch(e){ p={risk_score:0,level:'BELIRSIZ',reason:'parse_error: '+raw.slice(0,200)}; }\n  const s = src[i] ? src[i].json : {};\n  return { json: { tweet_id:s.tweet_id, company_code:esc(s.company_code), risk_score:Number(p.risk_score)||0, level:esc(p.level), reason:esc(p.reason) } };\n});"
+        "jsCode": "const llm = $input.all();\nconst src = $('Tweet Oku (siniflandir)').all();\nconst esc = (s)=>String(s ?? '').replace(/'/g,\"''\");\nreturn llm.map((it,i)=>{\n  let raw = it.json.text ?? it.json.output ?? it.json.response ?? '';\n  raw = String(raw).trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();\n  let p; try{ p=JSON.parse(raw); }catch(e){ p={risk_score:0,level:'BELIRSIZ',reason:'parse_error: '+raw.slice(0,200)}; }\n  const s = src[i] ? src[i].json : {};\n  return { json: { tweet_id:s.tweet_id, company_code:esc(s.company_code), risk_score:Number(p.risk_score)||0, credibility_score:Number(p.credibility_score)||0, level:esc(p.level), reason:esc(p.reason) } };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -49,7 +49,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO risk_scores (symbol, tweet_id, risk_score, level, reason, source, created_at)\nVALUES ('{{ $json.company_code }}', '{{ $json.tweet_id }}', {{ $json.risk_score }}, '{{ $json.level }}', '{{ $json.reason }}', 'tweet', now());\nUPDATE financial_tweets SET is_processed = true WHERE tweet_id = '{{ $json.tweet_id }}';"
+        "query": "INSERT INTO risk_scores (symbol, tweet_id, risk_score, credibility_score, level, reason, source, created_at)\nVALUES ('{{ $json.company_code }}', '{{ $json.tweet_id }}', {{ $json.risk_score }}, {{ $json.credibility_score }}, '{{ $json.level }}', '{{ $json.reason }}', 'tweet', now());\nUPDATE financial_tweets SET is_processed = true WHERE tweet_id = '{{ $json.tweet_id }}';"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -73,7 +73,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, symbol, headline, content\nFROM financial_news\nWHERE is_processed = false\nORDER BY published_at ASC\nLIMIT 10;"
+        "query": "SELECT n.id, n.symbol, n.headline, n.content,\n  COALESCE((\n    SELECT string_agg(h, E'\\n') FROM (\n      SELECT '- ' || k.headline AS h\n      FROM kap_disclosures k\n      WHERE k.symbol = n.symbol\n      ORDER BY k.published_at DESC NULLS LAST\n      LIMIT 5\n    ) sub\n  ), 'Resmi KAP aciklamasi yok') AS kap_context\nFROM financial_news n\nWHERE n.is_processed = false\nORDER BY n.published_at ASC\nLIMIT 10;"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -84,7 +84,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Sen finansal risk analisti bir asistansin. Su firmaya ait bir HABER veriyorum. Firma sembolu belli: {{ $json.symbol }}\n\n1. Bu haber {{ $json.symbol }} firmasi icin ne kadar riskli? 0-100 skorla.\n2. Tek cumle Turkce gerekce yaz.\n\nSADECE su JSON, baska hicbir sey, kod blogu yok:\n{\"risk_score\":72,\"level\":\"YUKSEK\",\"reason\":\"...\"}\nlevel: DUSUK / ORTA / YUKSEK\n\nBaslik: {{ $json.headline }}\nIcerik: {{ $json.content }}",
+        "text": "=Sen finansal risk analisti bir asistansin. Firma: {{ $json.symbol }}\n\nBu firmanin SON RESMI KAP aciklamalari:\n{{ $json.kap_context }}\n\nAsagidaki HABER'i degerlendir:\n1. risk_score: bu haber firma icin ne kadar riskli? 0-100.\n2. credibility_score: haberdeki iddia yukaridaki RESMI KAP aciklamalariyla ne kadar tutarli/dogrulanabilir? 0-100. (100=resmi kaynakla birebir ortusuyor, dusuk=resmi kaynakta yok veya celisiyor, manipulasyon/soylenti olabilir)\n3. Tek cumle Turkce gerekce.\n\nSADECE su JSON, baska hicbir sey, kod blogu yok:\n{\"risk_score\":72,\"credibility_score\":40,\"level\":\"YUKSEK\",\"reason\":\"...\"}\nlevel: DUSUK / ORTA / YUKSEK\n\nBaslik: {{ $json.headline }}\nIcerik: {{ $json.content }}",
         "messages": {},
         "batching": {}
       },
@@ -98,7 +98,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const llm = $input.all();\nconst src = $('Haber Oku').all();\nconst esc = (s)=>String(s ?? '').replace(/'/g,\"''\");\nreturn llm.map((it,i)=>{\n  let raw = it.json.text ?? it.json.output ?? it.json.response ?? '';\n  raw = String(raw).trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();\n  let p; try{ p=JSON.parse(raw); }catch(e){ p={risk_score:0,level:'BELIRSIZ',reason:'parse_error: '+raw.slice(0,200)}; }\n  const s = src[i] ? src[i].json : {};\n  return { json: { news_id:s.id, symbol:esc(s.symbol), risk_score:Number(p.risk_score)||0, level:esc(p.level), reason:esc(p.reason) } };\n});"
+        "jsCode": "const llm = $input.all();\nconst src = $('Haber Oku').all();\nconst esc = (s)=>String(s ?? '').replace(/'/g,\"''\");\nreturn llm.map((it,i)=>{\n  let raw = it.json.text ?? it.json.output ?? it.json.response ?? '';\n  raw = String(raw).trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();\n  let p; try{ p=JSON.parse(raw); }catch(e){ p={risk_score:0,level:'BELIRSIZ',reason:'parse_error: '+raw.slice(0,200)}; }\n  const s = src[i] ? src[i].json : {};\n  return { json: { news_id:s.id, symbol:esc(s.symbol), risk_score:Number(p.risk_score)||0, credibility_score:Number(p.credibility_score)||0, level:esc(p.level), reason:esc(p.reason) } };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -109,7 +109,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO risk_scores (symbol, news_id, risk_score, level, reason, source, created_at)\nVALUES ('{{ $json.symbol }}', {{ $json.news_id }}, {{ $json.risk_score }}, '{{ $json.level }}', '{{ $json.reason }}', 'news', now());\nUPDATE financial_news SET is_processed = true WHERE id = {{ $json.news_id }};"
+        "query": "INSERT INTO risk_scores (symbol, news_id, risk_score, credibility_score, level, reason, source, created_at)\nVALUES ('{{ $json.symbol }}', {{ $json.news_id }}, {{ $json.risk_score }}, {{ $json.credibility_score }}, '{{ $json.level }}', '{{ $json.reason }}', 'news', now());\nUPDATE financial_news SET is_processed = true WHERE id = {{ $json.news_id }};"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
